@@ -1,0 +1,29 @@
+const express = require('express');
+const cors = require('cors');
+const { apiLimiter } = require('./src/middleware/rateLimit.middleware');
+const errorHandler = require('./src/middleware/error.middleware');
+const cookieParser = require('cookie-parser');
+
+const app = express();
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// Apply rate limiting to all requests
+app.use(apiLimiter);
+
+// Routes
+const authRoutes = require('./src/modules/auth/auth.route');
+const userRoutes = require('./src/modules/user/user.route');
+
+app.use('/auth', authRoutes);
+app.use('/user', userRoutes);
+
+// Global Error Handler
+app.use(errorHandler);
+
+module.exports = app;
