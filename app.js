@@ -23,9 +23,11 @@ app.use(apiLimiter);
 // Routes
 const authRoutes = require('./src/modules/auth/auth.route');
 const userRoutes = require('./src/modules/user/user.route');
+const todoRoutes = require('./src/modules/todo/todo.route');
 
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
+app.use('/todo', todoRoutes);
 
 // Global Error Handler
 app.use(errorHandler);
