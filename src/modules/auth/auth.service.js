@@ -4,6 +4,7 @@ const authRepository = require('./auth.repository');
 const sessionService = require('../session/session.service');
 const jwtUtil = require('../../utils/jwt.util');
 const config = require('../../config/env');
+const { logActivity } = require('../../utils/activityLogger');
 
 class AuthService {
   async register(email, password) {
@@ -17,6 +18,9 @@ class AuthService {
       email,
       password: hashedPassword,
     });
+
+    // Log activity
+    await logActivity(newUser.id, 'REGISTER', 'Account created successfully');
 
     return {
       id: newUser.id,
@@ -44,6 +48,9 @@ class AuthService {
       metadata.userAgent,
       metadata.ipAddress
     );
+
+    // Log activity
+    await logActivity(user.id, 'LOGIN', 'Successfully logged into the system');
     
     return {
       user: {

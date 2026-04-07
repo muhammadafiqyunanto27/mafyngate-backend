@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { logActivity } = require('../../utils/activityLogger');
 
 class TodoService {
   async getAllTodos(userId) {
@@ -10,12 +11,17 @@ class TodoService {
   }
 
   async createTodo(userId, title) {
-    return prisma.todo.create({
+    const todo = await prisma.todo.create({
       data: {
         title,
         user_id: userId,
       }
     });
+
+    // Log activity
+    await logActivity(userId, 'TASK_CREATED', `Created new task: "${title.substring(0, 20)}${title.length > 20 ? '...' : ''}"`);
+
+    return todo;
   }
 
   async updateTodo(userId, todoId, data) {
@@ -25,13 +31,20 @@ class TodoService {
       throw new Error('Todo not found or unauthorized');
     }
 
-    return prisma.todo.update({
+    const updatedTodo = await prisma.todo.update({
       where: { id: todoId },
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.completed !== undefined && { completed: data.completed })
       }
     });
+
+    // Log activity if completed
+    if (data.completed === true) {
+      await logActivity(userId, 'TASK_COMPLETED', `Completed task: "${updatedTodo.title.substring(0, 20)}${updatedTodo.title.length > 20 ? '...' : ''}"`);
+    }
+
+    return updatedTodo;
   }
 
   async deleteTodo(userId, todoId) {

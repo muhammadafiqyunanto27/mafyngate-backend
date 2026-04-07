@@ -18,6 +18,25 @@ class UserRepository {
       where: { id },
     });
   }
+
+  async updateById(id, data) {
+    return await UserModel.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async findActivities(userId) {
+    return await UserModel.findUnique({
+      where: { id: userId },
+      select: {
+        activities: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+      },
+    });
+  }
 }
 
 module.exports = new UserRepository();
