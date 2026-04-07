@@ -40,12 +40,15 @@ class AuthController {
 
       const result = await authService.login(email, password, metadata);
       
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      
       // Send refresh token as HTTP Only cookie
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: true, // Always secure for cross-site (SameSite: none)
+        sameSite: 'none', 
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        partitioned: true // For modern Chrome CHIPS support
       });
       
       // Do not send refresh token in JSON payload
@@ -81,8 +84,9 @@ class AuthController {
       // Clear cookie regardless
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'none',
+        partitioned: true
       });
       res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
@@ -99,8 +103,9 @@ class AuthController {
       
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'none',
+        partitioned: true
       });
       res.status(200).json({ success: true, message: 'Logged out from all devices' });
     } catch (error) {
