@@ -130,6 +130,26 @@ const chatSocket = (io) => {
       }
     });
 
+    // Handle follow notifications real-time
+    socket.on('follow_user', async (data) => {
+      const { followingId } = data;
+      try {
+        const sender = await prisma.user.findUnique({ where: { id: userId } });
+        const notification = await prisma.notification.create({
+          data: {
+            userId: followingId,
+            type: 'FOLLOW',
+            content: `${sender.name || sender.email} started following you`,
+            senderId: userId
+          }
+        });
+        
+        io.to(followingId).emit('new_notification', notification);
+      } catch (err) {
+        console.error('Socket error following user:', err);
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${userId}`);
       users.delete(userId);

@@ -84,6 +84,108 @@ class UserRepository {
     });
   }
 
+  async searchUsers(query, currentUserId) {
+    const prisma = require('../../config/db');
+    return await UserModel.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { email: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+          { id: { not: currentUserId } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+        followers: {
+          where: { followerId: currentUserId }
+        }
+      }
+    });
+  }
+
+  async follow(followerId, followingId) {
+    const prisma = require('../../config/db');
+    return await prisma.follow.create({
+      data: { followerId, followingId }
+    });
+  }
+
+  async unfollow(followerId, followingId) {
+    const prisma = require('../../config/db');
+    return await prisma.follow.delete({
+      where: {
+        followerId_followingId: { followerId, followingId }
+      }
+    });
+  }
+
+  async getMutualFollowers(userId) {
+    const prisma = require('../../config/db');
+    // Users followed by userId who ALSO follow userId back
+    const following = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true }
+    });
+    
+    const followingIds = following.map(f => f.followingId);
+
+    return await UserModel.findMany({
+      where: {
+        id: { in: followingIds },
+        following: {
+          some: { followingId: userId }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true
+      }
+    });
+  }
+
+  async createNotification(data) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.create({
+      data: {
+        userId: data.userId,
+        type: data.type,
+        content: data.content,
+        senderId: data.senderId
+      }
+    });
+  }
+
+  async findNotifications(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async deleteNotification(userId, id) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.delete({
+      where: { id, userId }
+    });
+  }
+
+  async clearAllNotifications(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.deleteMany({
+      where: { userId }
+    });
+  }
+
   async deleteById(id) {
     return await UserModel.delete({
       where: { id },

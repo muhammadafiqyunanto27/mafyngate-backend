@@ -166,6 +166,89 @@ class UserController {
       next(error);
     }
   }
+
+  async searchUsers(req, res, next) {
+    try {
+      const { q } = req.query;
+      const userId = req.user.id;
+      const users = await userRepository.searchUsers(q, userId);
+      
+      const mappedUsers = users.map(u => ({
+        ...u,
+        isFollowing: u.followers.length > 0
+      }));
+
+      res.status(200).json({ success: true, data: mappedUsers });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async followUser(req, res, next) {
+    try {
+      const followerId = req.user.id;
+      const followingId = req.params.userId;
+      await userRepository.follow(followerId, followingId);
+      res.status(200).json({ success: true, message: 'Followed successfully' });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return res.status(400).json({ success: false, message: 'Already following' });
+      }
+      next(error);
+    }
+  }
+
+  async unfollowUser(req, res, next) {
+    try {
+      const followerId = req.user.id;
+      const followingId = req.params.userId;
+      await userRepository.unfollow(followerId, followingId);
+      res.status(200).json({ success: true, message: 'Unfollowed successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getConnections(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const mutuals = await userRepository.getMutualFollowers(userId);
+      res.status(200).json({ success: true, data: mutuals });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getNotifications(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const notifications = await userRepository.findNotifications(userId);
+      res.status(200).json({ success: true, data: notifications });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteNotification(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+      await userRepository.deleteNotification(userId, id);
+      res.status(200).json({ success: true, message: 'Notification deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async clearNotifications(req, res, next) {
+    try {
+      const userId = req.user.id;
+      await userRepository.clearAllNotifications(userId);
+      res.status(200).json({ success: true, message: 'All notifications cleared' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();
