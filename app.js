@@ -3,6 +3,14 @@ const cors = require('cors');
 const { apiLimiter } = require('./src/middleware/rateLimit.middleware');
 const errorHandler = require('./src/middleware/error.middleware');
 const cookieParser = require('cookie-parser');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const app = express();
 
@@ -19,6 +27,9 @@ app.use(cookieParser());
 
 // Apply rate limiting to all requests
 app.use(apiLimiter);
+
+// Serve uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const authRoutes = require('./src/modules/auth/auth.route');

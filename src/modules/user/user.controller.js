@@ -1,5 +1,7 @@
 const userRepository = require('./user.repository');
 const { logActivity } = require('../../utils/activityLogger');
+const path = require('path');
+const fs = require('fs');
 
 class UserController {
   async getMe(req, res, next) {
@@ -93,6 +95,36 @@ class UserController {
       await userRepository.deleteById(userId);
 
       res.status(200).json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateAvatar(req, res, next) {
+    try {
+      const userId = req.user.id;
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      const avatarPath = `/uploads/${req.file.filename}`;
+      
+      const user = await userRepository.findById(userId);
+      
+      // Delete old avatar if it exists and is not the default
+      if (user.avatar && user.avatar.startsWith('/uploads/')) {
+        const oldFile = path.join(__dirname, '../../../', user.avatar);
+        if (fs.existsSync(oldFile)) {
+          fs.unlinkSync(oldFile);
+        }
+      }
+
+      const updatedUser = await userRepository.updateById(userId, { avatar: avatarPath });
+      
+      await logActivity(userId, 'PROFILE_UPDATED', 'Updated profile picture');
+
+      const { password, ...safeUser } = updatedUser;
+      res.status(200).json({ success: true, message: 'Avatar updated successfully', data: safeUser });
     } catch (error) {
       next(error);
     }
