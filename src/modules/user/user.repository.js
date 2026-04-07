@@ -51,6 +51,39 @@ class UserRepository {
     });
   }
 
+  async findAll() {
+    return await UserModel.findMany();
+  }
+
+  async findMessagesByUsers(user1Id, user2Id) {
+    const prisma = require('../../config/db');
+    return await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: user1Id, receiverId: user2Id },
+          { senderId: user2Id, receiverId: user1Id },
+        ],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async updateMessagesReadStatus(receiverId, senderId) {
+    const prisma = require('../../config/db');
+    return await prisma.message.updateMany({
+      where: {
+        receiverId,
+        senderId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+  }
+
   async deleteById(id) {
     return await UserModel.delete({
       where: { id },

@@ -129,6 +129,43 @@ class UserController {
       next(error);
     }
   }
+
+  async getAllUsers(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const users = await userRepository.findAll();
+      
+      const filteredUsers = users
+        .filter(user => user.id !== userId)
+        .map(({ password, ...user }) => user);
+
+      res.status(200).json({ success: true, data: filteredUsers });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMessages(req, res, next) {
+    try {
+      const currentUserId = req.user.id;
+      const otherUserId = req.params.userId;
+      const messages = await userRepository.findMessagesByUsers(currentUserId, otherUserId);
+      res.status(200).json({ success: true, data: messages });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async markMessagesAsRead(req, res, next) {
+    try {
+      const currentUserId = req.user.id;
+      const senderId = req.params.userId;
+      await userRepository.updateMessagesReadStatus(currentUserId, senderId);
+      res.status(200).json({ success: true, message: 'Messages marked as read' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();
