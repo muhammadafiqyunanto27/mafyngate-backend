@@ -84,6 +84,19 @@ class UserController {
       next(error);
     }
   }
+
+  async deleteMe(req, res, next) {
+    try {
+      const userId = req.user.id;
+      
+      // Permanently delete user
+      await userRepository.deleteById(userId);
+
+      res.status(200).json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();

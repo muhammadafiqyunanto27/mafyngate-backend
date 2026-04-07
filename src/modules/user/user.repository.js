@@ -37,6 +37,12 @@ class UserRepository {
       },
     });
   }
+
+  async deleteById(id) {
+    return await UserModel.delete({
+      where: { id },
+    });
+  }
 }
 
 module.exports = new UserRepository();

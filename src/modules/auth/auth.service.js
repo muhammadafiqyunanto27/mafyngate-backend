@@ -25,6 +25,7 @@ class AuthService {
     return {
       id: newUser.id,
       email: newUser.email,
+      name: newUser.name,
     };
   }
 
@@ -56,6 +57,7 @@ class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
       },
       ...tokens,
     };
