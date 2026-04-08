@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 router.get('/', todoController.getAllTodos);
 router.post('/', todoController.createTodo);
+router.delete('/clear-all', todoController.deleteAllTodos);
 router.put('/:id', todoController.updateTodo);
 router.delete('/:id', todoController.deleteTodo);
 

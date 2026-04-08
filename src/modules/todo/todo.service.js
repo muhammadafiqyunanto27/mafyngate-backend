@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../config/db');
 const { logActivity } = require('../../utils/activityLogger');
 
 class TodoService {
@@ -57,6 +56,17 @@ class TodoService {
     return prisma.todo.delete({
       where: { id: todoId }
     });
+  }
+
+  async deleteAllTodos(userId) {
+    const result = await prisma.todo.deleteMany({
+      where: { user_id: userId }
+    });
+
+    // Log activity
+    await logActivity(userId, 'TASK_CLEARED', `Cleared all tasks (${result.count} items)`);
+
+    return result;
   }
 }
 

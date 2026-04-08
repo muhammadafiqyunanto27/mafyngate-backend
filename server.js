@@ -3,6 +3,7 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const config = require('./src/config/env');
 const chatSocket = require('./src/sockets/chat.socket');
+const socketService = require('./src/sockets/socketService');
 
 const PORT = config.port;
 const server = http.createServer(app);
@@ -18,7 +19,8 @@ const io = new Server(server, {
   }
 });
 
-// Initialize socket handlers
+// Initialize socket service and handlers
+socketService.init(io);
 chatSocket(io);
 
 server.listen(PORT, () => {

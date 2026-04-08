@@ -154,6 +154,62 @@ class UserRepository {
     });
   }
 
+  async findConnections(userId) {
+    const prisma = require('../../config/db');
+    // Get all follows where current user is involved
+    const connections = await prisma.follow.findMany({
+      where: {
+        OR: [
+          { followerId: userId },
+          { followingId: userId },
+        ],
+      },
+      include: {
+        follower: true,
+        following: true,
+      },
+    });
+
+    // Map to unique other users
+    const userMap = new Map();
+    connections.forEach(conn => {
+      const otherUser = conn.followerId === userId ? conn.following : conn.follower;
+      if (otherUser.id !== userId) {
+        userMap.set(otherUser.id, otherUser);
+      }
+    });
+
+    const users = Array.from(userMap.values());
+
+    // Enrich with last message info
+    const enrichedUsers = await Promise.all(users.map(async (u) => {
+      const lastMsg = await prisma.message.findFirst({
+        where: {
+          OR: [
+            { senderId: userId, receiverId: u.id },
+            { senderId: u.id, receiverId: userId }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return {
+        ...u,
+        lastMessage: lastMsg ? {
+          content: lastMsg.content,
+          createdAt: lastMsg.createdAt
+        } : null
+      };
+    }));
+
+    // Sort by last message time (descending)
+    return enrichedUsers.sort((a, b) => {
+      const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+  }
+
   async createNotification(data) {
     const prisma = require('../../config/db');
     return await prisma.notification.create({
@@ -248,6 +304,52 @@ class UserRepository {
     return await UserModel.delete({
       where: { id },
     });
+  }
+  
+  async countUnreadMessages(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.message.count({
+      where: {
+        receiverId: userId,
+        isRead: false
+      }
+    });
+  }
+
+  async countUnreadNotifications(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.count({
+      where: {
+        userId: userId,
+        isRead: false
+      }
+    });
+  }
+
+  async findUnreadConversations(userId) {
+    const prisma = require('../../config/db');
+    const unreadMessages = await prisma.message.findMany({
+      where: {
+        receiverId: userId,
+        isRead: false
+      },
+      distinct: ['senderId'],
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return unreadMessages.map(m => m.sender);
   }
 }
 

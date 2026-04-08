@@ -212,8 +212,8 @@ class UserController {
   async getConnections(req, res, next) {
     try {
       const userId = req.user.id;
-      const mutuals = await userRepository.getMutualFollowers(userId);
-      res.status(200).json({ success: true, data: mutuals });
+      const connections = await userRepository.findConnections(userId);
+      res.status(200).json({ success: true, data: connections });
     } catch (error) {
       next(error);
     }
@@ -271,6 +271,36 @@ class UserController {
 
       const updated = await userRepository.updateMessage(userId, messageId, content);
       res.status(200).json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUnreadCount(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const count = await userRepository.countUnreadMessages(userId);
+      res.status(200).json({ success: true, count });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUnreadNotificationCount(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const count = await userRepository.countUnreadNotifications(userId);
+      res.status(200).json({ success: true, count });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUnreadConversations(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const data = await userRepository.findUnreadConversations(userId);
+      res.status(200).json({ success: true, data });
     } catch (error) {
       next(error);
     }
