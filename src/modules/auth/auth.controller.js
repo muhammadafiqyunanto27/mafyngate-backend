@@ -42,14 +42,20 @@ class AuthController {
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
       
-      // Send refresh token as HTTP Only cookie
-      res.cookie('refreshToken', result.refreshToken, {
+      // Cookie options
+      const cookieOptions = {
         httpOnly: true,
-        secure: true, // Always secure for cross-site (SameSite: none)
-        sameSite: 'none', 
+        secure: isProduction, // Use secure only in production
+        sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site, 'lax' in dev
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        partitioned: true // For modern Chrome CHIPS support
-      });
+      };
+
+      if (isProduction) {
+        cookieOptions.partitioned = true;
+      }
+
+      // Send refresh token as HTTP Only cookie
+      res.cookie('refreshToken', result.refreshToken, cookieOptions);
       
       // Do not send refresh token in JSON payload
       const { refreshToken, ...responseData } = result;
@@ -81,12 +87,14 @@ class AuthController {
         await authService.logout(refreshToken);
       }
       
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      
       // Clear cookie regardless
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        partitioned: true
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction
       });
       res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
@@ -101,11 +109,13 @@ class AuthController {
         await authService.logoutAll(refreshToken);
       }
       
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        partitioned: true
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction
       });
       res.status(200).json({ success: true, message: 'Logged out from all devices' });
     } catch (error) {
