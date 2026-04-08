@@ -119,9 +119,11 @@ class UserRepository {
 
   async unfollow(followerId, followingId) {
     const prisma = require('../../config/db');
-    return await prisma.follow.delete({
+    // Using deleteMany instead of delete to avoid "Record to delete not found" error
+    return await prisma.follow.deleteMany({
       where: {
-        followerId_followingId: { followerId, followingId }
+        followerId,
+        followingId
       }
     });
   }

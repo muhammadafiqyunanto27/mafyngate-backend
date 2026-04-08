@@ -89,15 +89,18 @@ const chatSocket = (io) => {
         // Send to receiver if online (using their private room)
         io.to(receiverId).emit('receive_message', message);
         
-        // Also send notification event for navbar
-        const receiverUnreadCount = await prisma.message.count({
-          where: { receiverId: receiverId, isRead: false }
+        // Also send/save notification event for navbar
+        const senderName = message.sender.name || message.sender.email.split('@')[0];
+        const notification = await prisma.notification.create({
+          data: {
+            userId: receiverId,
+            type: 'CHAT',
+            content: `${senderName} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+            senderId: userId
+          }
         });
-        io.to(receiverId).emit('new_notification', { 
-          type: 'CHAT', 
-          message: `New message from ${message.sender.name || message.sender.email}`,
-          count: receiverUnreadCount
-        });
+
+        io.to(receiverId).emit('new_notification', notification);
 
         // Confirm to sender
         socket.emit('message_sent', message);
@@ -133,18 +136,23 @@ const chatSocket = (io) => {
     // Handle follow notifications real-time
     socket.on('follow_user', async (data) => {
       const { followingId } = data;
+      console.log(`[Socket] User ${userId} followed ${followingId}`);
       try {
         const sender = await prisma.user.findUnique({ where: { id: userId } });
+        if (!sender) return console.error('Sender not found for notification');
+        
+        const senderName = sender.name || sender.email.split('@')[0];
         const notification = await prisma.notification.create({
           data: {
-            userId: followingId,
+            userId: followingId.toString(),
             type: 'FOLLOW',
-            content: `${sender.name || sender.email} started following you`,
-            senderId: userId
+            content: `${senderName} is following you`,
+            senderId: userId.toString()
           }
         });
         
-        io.to(followingId).emit('new_notification', notification);
+        console.log(`[Socket] Notification created and emitting to room: ${followingId}`);
+        io.to(followingId.toString()).emit('new_notification', notification);
       } catch (err) {
         console.error('Socket error following user:', err);
       }
