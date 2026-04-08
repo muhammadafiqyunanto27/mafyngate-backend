@@ -10,6 +10,7 @@ router.get('/users', authMiddleware, userController.getAllUsers);
 router.get('/search', authMiddleware, userController.searchUsers);
 router.get('/connections', authMiddleware, userController.getConnections);
 router.get('/notifications', authMiddleware, userController.getNotifications);
+router.patch('/notifications/read', authMiddleware, userController.markNotificationsAsRead);
 router.delete('/notifications/:id', authMiddleware, userController.deleteNotification);
 router.delete('/notifications', authMiddleware, userController.clearNotifications);
 router.post('/follow/:userId', authMiddleware, userController.followUser);

@@ -142,17 +142,35 @@ const chatSocket = (io) => {
         if (!sender) return console.error('Sender not found for notification');
         
         const senderName = sender.name || sender.email.split('@')[0];
+        
+        // Check if this is a "Follow Back"
+        const isFollowBack = await prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: followingId,
+              followingId: userId
+            }
+          }
+        });
+
+        const content = isFollowBack 
+          ? `${senderName} followed you back` 
+          : `${senderName} is following you`;
+
         const notification = await prisma.notification.create({
           data: {
             userId: followingId.toString(),
             type: 'FOLLOW',
-            content: `${senderName} is following you`,
+            content: content,
             senderId: userId.toString()
           }
         });
         
-        console.log(`[Socket] Notification created and emitting to room: ${followingId}`);
-        io.to(followingId.toString()).emit('new_notification', notification);
+        console.log(`[Socket] Notification created (${isFollowBack ? 'Follback' : 'Follow'}) and emitting to room: ${followingId}`);
+        io.to(followingId.toString()).emit('new_notification', {
+          ...notification,
+          isFollowingSender: !!isFollowBack // For the receiver, the sender is the one who followed
+        });
       } catch (err) {
         console.error('Socket error following user:', err);
       }

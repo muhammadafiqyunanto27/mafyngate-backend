@@ -168,16 +168,45 @@ class UserRepository {
 
   async findNotifications(userId) {
     const prisma = require('../../config/db');
-    return await prisma.notification.findMany({
+    const notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' }
     });
+
+    // Check if the current user is following each sender
+    const mapped = await Promise.all(notifications.map(async (n) => {
+      if (!n.senderId) return { ...n, isFollowingSender: false };
+      
+      const isFollowing = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: userId,
+            followingId: n.senderId
+          }
+        }
+      });
+      
+      return {
+        ...n,
+        isFollowingSender: !!isFollowing
+      };
+    }));
+
+    return mapped;
   }
 
   async deleteNotification(userId, id) {
     const prisma = require('../../config/db');
     return await prisma.notification.delete({
       where: { id, userId }
+    });
+  }
+
+  async markAllNotificationsAsRead(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true }
     });
   }
 

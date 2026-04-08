@@ -249,6 +249,16 @@ class UserController {
       next(error);
     }
   }
+
+  async markNotificationsAsRead(req, res, next) {
+    try {
+      const userId = req.user.id;
+      await userRepository.markAllNotificationsAsRead(userId);
+      res.status(200).json({ success: true, message: 'All notifications marked as read' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();
