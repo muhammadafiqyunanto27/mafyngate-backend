@@ -259,6 +259,22 @@ class UserController {
       next(error);
     }
   }
+
+  async deleteChatMessages(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { messageIds } = req.body; // Expects an array
+      
+      if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid message IDs' });
+      }
+
+      await userRepository.deleteMessages(userId, messageIds);
+      res.status(200).json({ success: true, message: 'Messages deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();

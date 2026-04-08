@@ -133,6 +133,26 @@ const chatSocket = (io) => {
       }
     });
 
+    // Handle message deletion (unsend/withdraw)
+    socket.on('delete_messages', async (data) => {
+      const { messageIds, conversationId, receiverId } = data;
+      console.log(`[Socket] User ${userId} deleted messages:`, messageIds);
+      
+      try {
+        // Send to receiver room directly if provided
+        if (receiverId) {
+          io.to(receiverId).emit('messages_deleted', { messageIds });
+        }
+        
+        // Also broadcast to conversation room
+        if (conversationId && conversationId !== 'temp_id') {
+          io.to(conversationId).emit('messages_deleted', { messageIds });
+        }
+      } catch (err) {
+        console.error('Socket error deleting messages:', err);
+      }
+    });
+
     // Handle follow notifications real-time
     socket.on('follow_user', async (data) => {
       const { followingId } = data;

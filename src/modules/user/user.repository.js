@@ -217,6 +217,17 @@ class UserRepository {
     });
   }
 
+  async deleteMessages(userId, messageIds) {
+    const prisma = require('../../config/db');
+    // Only allow deleting messages sent by this user
+    return await prisma.message.deleteMany({
+      where: {
+        id: { in: messageIds },
+        senderId: userId
+      }
+    });
+  }
+
   async deleteById(id) {
     return await UserModel.delete({
       where: { id },
