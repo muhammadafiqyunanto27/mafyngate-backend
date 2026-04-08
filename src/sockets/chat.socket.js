@@ -153,6 +153,19 @@ const chatSocket = (io) => {
       }
     });
 
+    // Handle message editing
+    socket.on('edit_message', (data) => {
+      const { message, conversationId, receiverId } = data;
+      console.log(`[Socket] Message edited:`, message.id);
+      
+      if (receiverId) {
+        io.to(receiverId).emit('message_updated', message);
+      }
+      if (conversationId && conversationId !== 'temp_id') {
+        io.to(conversationId).emit('message_updated', message);
+      }
+    });
+
     // Handle follow notifications real-time
     socket.on('follow_user', async (data) => {
       const { followingId } = data;

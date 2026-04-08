@@ -260,6 +260,22 @@ class UserController {
     }
   }
 
+  async editChatMessage(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { messageId, content } = req.body;
+      
+      if (!messageId || !content) {
+        return res.status(400).json({ success: false, message: 'Message ID and content are required' });
+      }
+
+      const updated = await userRepository.updateMessage(userId, messageId, content);
+      res.status(200).json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async deleteChatMessages(req, res, next) {
     try {
       const userId = req.user.id;

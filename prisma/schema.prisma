@@ -82,6 +82,7 @@ model Message {
   receiverId     String
   conversationId String
   isRead         Boolean      @default(false)
+  isEdited       Boolean      @default(false)
   
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

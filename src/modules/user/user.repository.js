@@ -217,6 +217,22 @@ class UserRepository {
     });
   }
 
+  async updateMessage(userId, messageId, content) {
+    const prisma = require('../../config/db');
+    return await prisma.message.update({
+      where: { id: messageId, senderId: userId },
+      data: { 
+        content,
+        isEdited: true 
+      },
+      include: {
+        sender: {
+          select: { id: true, name: true, avatar: true, email: true }
+        }
+      }
+    });
+  }
+
   async deleteMessages(userId, messageIds) {
     const prisma = require('../../config/db');
     // Only allow deleting messages sent by this user
