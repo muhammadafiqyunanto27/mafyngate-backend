@@ -105,6 +105,9 @@ class UserRepository {
         avatar: true,
         followers: {
           where: { followerId: currentUserId }
+        },
+        following: {
+          where: { followingId: currentUserId }
         }
       }
     });

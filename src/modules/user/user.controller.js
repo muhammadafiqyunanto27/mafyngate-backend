@@ -175,7 +175,8 @@ class UserController {
       
       const mappedUsers = users.map(u => ({
         ...u,
-        isFollowing: u.followers.length > 0
+        isFollowing: u.followers.length > 0,
+        followsMe: u.following.length > 0
       }));
 
       res.status(200).json({ success: true, data: mappedUsers });
@@ -203,6 +204,17 @@ class UserController {
       const followerId = req.user.id;
       const followingId = req.params.userId;
       await userRepository.unfollow(followerId, followingId);
+      
+      // Cleanup: Remove the follow notification from the other user's list
+      const prisma = require('../../config/db');
+      await prisma.notification.deleteMany({
+        where: {
+          userId: followingId,
+          senderId: followerId,
+          type: 'FOLLOW'
+        }
+      });
+
       res.status(200).json({ success: true, message: 'Unfollowed successfully' });
     } catch (error) {
       next(error);

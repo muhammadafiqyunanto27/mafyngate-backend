@@ -8,52 +8,43 @@ const chatSocket = (io) => {
   // Middleware for socket authentication
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-    if (!token) {
-      console.log('Socket Auth Error: No token provided');
-      return next(new Error('Authentication error: No token provided'));
-    }
+    if (!token) return next(new Error('Authentication error: No token provided'));
 
     try {
       const decoded = jwt.verify(token, config.jwt.accessSecret);
       socket.user = decoded;
       next();
     } catch (err) {
-      console.log('Socket Auth Error: Invalid token', err.message);
       return next(new Error('Authentication error: Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
-    const userId = socket.user.id;
-    console.log(`User connected to socket: ${userId}`);
+    const userId = socket.user.id.toString();
+    console.log(`[Socket] User Connected: ${userId}`);
     
-    // Track online user
     users.set(userId, socket.id);
-    
-    // Join a personal room for targeted notifications
     socket.join(userId);
 
-    // Get unread messages count on connection
     const sendUnreadCount = async () => {
-      const unreadCount = await prisma.message.count({
-        where: { receiverId: userId, isRead: false }
-      });
-      socket.emit('unread_count', { count: unreadCount });
+      try {
+        const count = await prisma.notification.count({
+          where: { userId, isRead: false }
+        });
+        socket.emit('unread_count', { count });
+      } catch (err) {}
     };
     sendUnreadCount();
 
     // Sending a message
     socket.on('send_message', async (data) => {
       const { content, receiverId } = data;
-      
+      const receiverIdStr = receiverId.toString();
       try {
-        // 1. Find existing conversation or create new one
         let conversation = await prisma.conversation.findFirst({
           where: {
             participants: {
-              every: {
-                userId: { in: [userId, receiverId] }
-              }
+              every: { userId: { in: [userId, receiverIdStr] } }
             }
           }
         });
@@ -62,155 +53,122 @@ const chatSocket = (io) => {
           conversation = await prisma.conversation.create({
             data: {
               participants: {
-                create: [
-                  { userId: userId },
-                  { userId: receiverId }
-                ]
+                create: [{ userId: userId }, { userId: receiverIdStr }]
               }
             }
           });
         }
 
-        // 2. Save message to database
         const message = await prisma.message.create({
           data: {
             content,
             senderId: userId,
-            receiverId,
+            receiverId: receiverIdStr,
             conversationId: conversation.id,
           },
           include: {
-            sender: {
-              select: { id: true, name: true, avatar: true, email: true }
-            }
+            sender: { select: { id: true, name: true, avatar: true, email: true } }
           }
         });
 
-        // Send to receiver if online (using their private room)
-        io.to(receiverId).emit('receive_message', message);
+        io.to(receiverIdStr).emit('receive_message', message);
         
-        // Also send/save notification event for navbar
         const senderName = message.sender.name || message.sender.email.split('@')[0];
         const notification = await prisma.notification.create({
           data: {
-            userId: receiverId,
+            userId: receiverIdStr,
             type: 'CHAT',
-            content: `${senderName} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+            content: `${senderName}: ${content.substring(0, 50)}`,
             senderId: userId
           }
         });
 
-        io.to(receiverId).emit('new_notification', notification);
-
-        // Confirm to sender
+        io.to(receiverIdStr).emit('new_notification', notification);
         socket.emit('message_sent', message);
-
       } catch (err) {
-        console.error('Socket error sending message:', err);
-        socket.emit('error', { message: 'Failed to send message' });
+        console.error('[Socket] Chat error:', err);
       }
     });
 
-    // Mark messages as read via socket for real-time badge update
-    socket.on('mark_read', async (data) => {
-      const { senderId } = data;
-      try {
-        await prisma.message.updateMany({
-          where: {
-            receiverId: userId,
-            senderId,
-            isRead: false
-          },
-          data: { isRead: true }
-        });
-        
-        const unreadCount = await prisma.message.count({
-          where: { receiverId: userId, isRead: false }
-        });
-        socket.emit('unread_count', { count: unreadCount });
-      } catch (err) {
-        console.error('Socket error marking as read:', err);
-      }
-    });
-
-    // Handle message deletion (unsend/withdraw)
-    socket.on('delete_messages', async (data) => {
-      const { messageIds, conversationId, receiverId } = data;
-      console.log(`[Socket] User ${userId} deleted messages:`, messageIds);
-      
-      try {
-        // Send to receiver room directly if provided
-        if (receiverId) {
-          io.to(receiverId).emit('messages_deleted', { messageIds });
-        }
-        
-        // Also broadcast to conversation room
-        if (conversationId && conversationId !== 'temp_id') {
-          io.to(conversationId).emit('messages_deleted', { messageIds });
-        }
-      } catch (err) {
-        console.error('Socket error deleting messages:', err);
-      }
-    });
-
-    // Handle message editing
-    socket.on('edit_message', (data) => {
-      const { message, conversationId, receiverId } = data;
-      console.log(`[Socket] Message edited:`, message.id);
-      
-      if (receiverId) {
-        io.to(receiverId).emit('message_updated', message);
-      }
-      if (conversationId && conversationId !== 'temp_id') {
-        io.to(conversationId).emit('message_updated', message);
-      }
-    });
-
-    // Handle follow notifications real-time
+    // Handle follow notifications with deduplication
     socket.on('follow_user', async (data) => {
       const { followingId } = data;
-      console.log(`[Socket] User ${userId} followed ${followingId}`);
+      const followingIdStr = followingId.toString();
+      
       try {
         const sender = await prisma.user.findUnique({ where: { id: userId } });
-        if (!sender) return console.error('Sender not found for notification');
-        
         const senderName = sender.name || sender.email.split('@')[0];
         
-        // Check if this is a "Follow Back"
+        // Check mutual follow status
         const isFollowBack = await prisma.follow.findUnique({
           where: {
             followerId_followingId: {
-              followerId: followingId,
+              followerId: followingIdStr,
               followingId: userId
             }
           }
         });
 
-        const content = isFollowBack 
-          ? `${senderName} followed you back` 
-          : `${senderName} is following you`;
+        const content = isFollowBack ? `${senderName} followed you back` : `${senderName} is following you`;
 
-        const notification = await prisma.notification.create({
-          data: {
-            userId: followingId.toString(),
-            type: 'FOLLOW',
-            content: content,
-            senderId: userId.toString()
+        // UPSERT Notification (Update existing FOLLOW notification from this user or create new)
+        const existingNotif = await prisma.notification.findFirst({
+          where: {
+            userId: followingIdStr,
+            senderId: userId,
+            type: 'FOLLOW'
           }
         });
+
+        let notification;
+        if (existingNotif) {
+          notification = await prisma.notification.update({
+            where: { id: existingNotif.id },
+            data: { content, isRead: false, createdAt: new Date() }
+          });
+        } else {
+          notification = await prisma.notification.create({
+            data: {
+              userId: followingIdStr,
+              type: 'FOLLOW',
+              content,
+              senderId: userId
+            }
+          });
+        }
         
-        console.log(`[Socket] Notification created (${isFollowBack ? 'Follback' : 'Follow'}) and emitting to room: ${followingId}`);
-        io.to(followingId.toString()).emit('new_notification', {
+        console.log(`[Socket] Follow Notif emitted to ${followingIdStr}`);
+        io.to(followingIdStr).emit('new_notification', {
           ...notification,
-          isFollowingSender: !!isFollowBack // For the receiver, the sender is the one who followed
+          isFollowingSender: !!isFollowBack
         });
       } catch (err) {
-        console.error('Socket error following user:', err);
+        console.error('[Socket] Follow error:', err);
       }
     });
 
+    // WebRTC Signaling
+    socket.on('call_user', (data) => {
+      const { userToCall, signalData, from, name, avatar, type } = data;
+      io.to(userToCall.toString()).emit('incoming_call', { signal: signalData, from, name, avatar, type });
+    });
+
+    socket.on('answer_call', (data) => {
+      const { signal, to } = data;
+      io.to(to.toString()).emit('call_accepted', signal);
+    });
+
+    socket.on('reject_call', (data) => {
+      const { to } = data;
+      io.to(to.toString()).emit('call_rejected');
+    });
+
+    socket.on('end_call', (data) => {
+      const { to } = data;
+      io.to(to.toString()).emit('call_ended');
+    });
+
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${userId}`);
       users.delete(userId);
     });
   });
