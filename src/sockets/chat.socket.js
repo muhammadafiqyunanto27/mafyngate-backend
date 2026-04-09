@@ -137,6 +137,11 @@ const chatSocket = (io) => {
       io.to(to.toString()).emit('call_ended');
     });
 
+    socket.on('mirror_toggled', (data) => {
+      const { to, isMirrored } = data;
+      io.to(to.toString()).emit('remote_mirror_toggled', { isMirrored });
+    });
+
     socket.on('disconnect', () => {
       users.delete(userId);
     });
