@@ -29,7 +29,14 @@ router.patch('/chat/message', authMiddleware, userController.editChatMessage);
 router.patch('/me', authMiddleware, userController.updateMe);
 router.patch('/avatar', authMiddleware, upload.single('avatar'), userController.updateAvatar);
 router.patch('/password', authMiddleware, userController.changePassword);
-router.patch('/password', authMiddleware, userController.changePassword);
+
+// Chat Lock & Hide Routes
+router.post('/chat/lock-password', authMiddleware, userController.setChatLockPassword);
+router.post('/chat/unlock', authMiddleware, userController.unlockHiddenChats);
+router.post('/chat/hide', authMiddleware, userController.toggleHideConversation);
+router.delete('/chat/lock-reset', authMiddleware, userController.resetHiddenChats);
+router.delete('/chat/conversation/:targetId', authMiddleware, userController.deleteFullConversation);
+
 router.get('/activities', authMiddleware, userController.getActivities);
 router.delete('/me', authMiddleware, userController.deleteMe);
 

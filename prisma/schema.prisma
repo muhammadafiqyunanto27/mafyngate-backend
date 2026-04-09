@@ -29,6 +29,18 @@ model User {
   following        Follow[] @relation("following")
   followers        Follow[] @relation("followers")
   notifications    Notification[]
+  
+  // Security
+  chatLockPassword String?
+}
+
+model HiddenConversation {
+  id        String   @id @default(uuid())
+  userId    String
+  targetId  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, targetId])
 }
 
 model Notification {

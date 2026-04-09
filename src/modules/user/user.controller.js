@@ -236,8 +236,16 @@ class UserController {
   async getConnections(req, res, next) {
     try {
       const userId = req.user.id;
+      const { includeHidden } = req.query; // If true, ignore hidden filter
       const connections = await userRepository.findConnections(userId);
-      res.status(200).json({ success: true, data: connections });
+      
+      let filtered = connections;
+      if (includeHidden !== 'true') {
+        const hiddenIds = await userRepository.getHiddenConversationIds(userId);
+        filtered = connections.filter(c => !hiddenIds.includes(c.id));
+      }
+
+      res.status(200).json({ success: true, data: filtered });
     } catch (error) {
       next(error);
     }
@@ -351,6 +359,81 @@ class UserController {
 
       await userRepository.deleteMessages(userId, messageIds);
       res.status(200).json({ success: true, message: 'Messages deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setChatLockPassword(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { password } = req.body;
+      const bcrypt = require('bcrypt');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await userRepository.setChatLockPassword(userId, hashedPassword);
+      res.status(200).json({ success: true, message: 'Chat lock password set successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async toggleHideConversation(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { targetId, hide } = req.body;
+      if (hide) {
+        await userRepository.hideConversation(userId, targetId);
+      } else {
+        await userRepository.showConversation(userId, targetId);
+      }
+      res.status(200).json({ success: true, message: hide ? 'Conversation hidden' : 'Conversation revealed' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async unlockHiddenChats(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { password } = req.body;
+      const user = await userRepository.findById(userId);
+      
+      if (!user.chatLockPassword) {
+        return res.status(400).json({ success: false, message: 'No chat lock password set' });
+      }
+
+      const bcrypt = require('bcrypt');
+      const isMatch = await bcrypt.compare(password, user.chatLockPassword);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Invalid lock password' });
+      }
+
+      const connections = await userRepository.findConnections(userId);
+      const hiddenIds = await userRepository.getHiddenConversationIds(userId);
+      const hiddenChats = connections.filter(c => hiddenIds.includes(c.id));
+
+      res.status(200).json({ success: true, data: hiddenChats });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetHiddenChats(req, res, next) {
+    try {
+      const userId = req.user.id;
+      await userRepository.resetHiddenChats(userId);
+      res.status(200).json({ success: true, message: 'Hidden chats wiped and password reset' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteFullConversation(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { targetId } = req.params;
+      await userRepository.deleteFullConversation(userId, targetId);
+      res.status(200).json({ success: true, message: 'Full conversation deleted' });
     } catch (error) {
       next(error);
     }

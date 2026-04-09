@@ -354,6 +354,74 @@ class UserRepository {
 
     return unreadMessages.map(m => m.sender);
   }
+
+  async setChatLockPassword(userId, hashedPassword) {
+    return await UserModel.update({
+      where: { id: userId },
+      data: { chatLockPassword: hashedPassword }
+    });
+  }
+
+  async hideConversation(userId, targetId) {
+    const prisma = require('../../config/db');
+    return await prisma.hiddenConversation.upsert({
+      where: {
+        userId_targetId: { userId, targetId }
+      },
+      create: { userId, targetId },
+      update: {} // No change needed if already exists
+    });
+  }
+
+  async showConversation(userId, targetId) {
+    const prisma = require('../../config/db');
+    return await prisma.hiddenConversation.deleteMany({
+      where: { userId, targetId }
+    });
+  }
+
+  async getHiddenConversationIds(userId) {
+    const prisma = require('../../config/db');
+    const hidden = await prisma.hiddenConversation.findMany({
+      where: { userId },
+      select: { targetId: true }
+    });
+    return hidden.map(h => h.targetId);
+  }
+
+  async deleteFullConversation(user1Id, user2Id) {
+    const prisma = require('../../config/db');
+    return await prisma.message.deleteMany({
+      where: {
+        OR: [
+          { senderId: user1Id, receiverId: user2Id },
+          { senderId: user2Id, receiverId: user1Id }
+        ]
+      }
+    });
+  }
+
+  async resetHiddenChats(userId) {
+    const prisma = require('../../config/db');
+    const hidden = await this.getHiddenConversationIds(userId);
+    
+    // Delete all messages with those users
+    await prisma.message.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: { in: hidden } },
+          { receiverId: userId, senderId: { in: hidden } }
+        ]
+      }
+    });
+
+    // Clear hidden conversation list and password
+    await prisma.hiddenConversation.deleteMany({ where: { userId } });
+    await UserModel.update({
+      where: { id: userId },
+      data: { chatLockPassword: null }
+    });
+  }
 }
 
 module.exports = new UserRepository();
