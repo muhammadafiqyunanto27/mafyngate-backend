@@ -25,6 +25,9 @@ const chatSocket = (io) => {
     users.set(userId, socket.id);
     socket.join(userId);
 
+    // Broadcast that this user is now online to anyone interested
+    io.emit('user_status', { userId, status: 'online' });
+
     // Function to broadcast unread count to all tabs of a user
     const broadcastUnreadCount = async (targetUserId) => {
       try {
@@ -186,9 +189,26 @@ const chatSocket = (io) => {
       io.to(to.toString()).emit('remote_mirror_toggled', { isMirrored });
     });
 
+    socket.on('typing', (data) => {
+      const { to } = data;
+      io.to(to.toString()).emit('user_typing', { from: userId });
+    });
+
+    socket.on('stop_typing', (data) => {
+      const { to } = data;
+      io.to(to.toString()).emit('user_stop_typing', { from: userId });
+    });
+
+    socket.on('get_user_status', (data) => {
+      const { targetId } = data;
+      const isOnline = users.has(targetId.toString());
+      socket.emit('user_status', { userId: targetId.toString(), status: isOnline ? 'online' : 'offline' });
+    });
+
     socket.on('disconnect', () => {
       users.delete(userId);
       userRooms.delete(socket.id);
+      io.emit('user_status', { userId, status: 'offline' });
     });
   });
 };
