@@ -27,10 +27,17 @@ class UserController {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      // Security: Strip password from returned user data
-      const { password, ...safeUser } = user;
+      // Security: Strip password and sensitive hashes from returned user data
+      const { password, chatLockPassword, ...safeUser } = user;
       
-      res.status(200).json({ success: true, message: 'User fetched successfully', data: safeUser });
+      res.status(200).json({ 
+        success: true, 
+        message: 'User fetched successfully', 
+        data: { 
+          ...safeUser, 
+          hasChatLock: !!chatLockPassword 
+        } 
+      });
     } catch (error) {
       next(error);
     }
