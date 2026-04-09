@@ -17,6 +17,7 @@ router.get('/notifications', authMiddleware, userController.getNotifications);
 router.patch('/notifications/read', authMiddleware, userController.markNotificationsAsRead);
 router.delete('/notifications/:id', authMiddleware, userController.deleteNotification);
 router.delete('/notifications', authMiddleware, userController.clearNotifications);
+router.delete('/notifications/sender/:senderId', authMiddleware, userController.deleteNotificationsBySender);
 router.post('/follow/:userId', authMiddleware, userController.followUser);
 router.delete('/unfollow/:userId', authMiddleware, userController.unfollowUser);
 router.get('/chat/messages/:userId', authMiddleware, userController.getMessages);

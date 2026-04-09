@@ -445,6 +445,24 @@ class UserController {
       next(error);
     }
   }
+
+  async deleteNotificationsBySender(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { senderId } = req.params;
+      const prisma = require('../../config/db');
+      await prisma.notification.deleteMany({
+        where: {
+          userId,
+          senderId,
+          type: 'CHAT'
+        }
+      });
+      res.status(200).json({ success: true, message: 'Notifications cleared' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();

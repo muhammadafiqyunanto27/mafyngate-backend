@@ -186,18 +186,28 @@ class UserRepository {
 
     // Enrich with last message info
     const enrichedUsers = await Promise.all(users.map(async (u) => {
-      const lastMsg = await prisma.message.findFirst({
-        where: {
-          OR: [
-            { senderId: userId, receiverId: u.id },
-            { senderId: u.id, receiverId: userId }
-          ]
-        },
-        orderBy: { createdAt: 'desc' }
-      });
+      const [lastMsg, unreadCount] = await Promise.all([
+        prisma.message.findFirst({
+          where: {
+            OR: [
+              { senderId: userId, receiverId: u.id },
+              { senderId: u.id, receiverId: userId }
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.message.count({
+          where: {
+            receiverId: userId,
+            senderId: u.id,
+            isRead: false
+          }
+        })
+      ]);
 
       return {
         ...u,
+        unreadCount,
         lastMessage: lastMsg ? {
           content: lastMsg.content,
           createdAt: lastMsg.createdAt

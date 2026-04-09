@@ -3,6 +3,7 @@ const config = require('../config/env');
 const prisma = require('../config/db');
 
 const users = new Map(); // userId -> socketId
+const userRooms = new Map(); // socketId -> targetUserId (who they are chatting with)
 
 const chatSocket = (io) => {
   io.use((socket, next) => {
@@ -36,7 +37,31 @@ const chatSocket = (io) => {
       }
     };
 
+    const broadcastUnreadChatsCount = async (targetUserId) => {
+      try {
+        const unreadConversations = await prisma.message.findMany({
+          where: { receiverId: targetUserId.toString(), isRead: false },
+          distinct: ['senderId']
+        });
+        io.to(targetUserId.toString()).emit('unread_chats_count', { count: unreadConversations.length });
+      } catch (err) {
+        console.error('[Socket] Unread chats count error:', err);
+      }
+    };
+
     broadcastUnreadCount(userId);
+    broadcastUnreadChatsCount(userId);
+
+    socket.on('join_chat', (data) => {
+      const { targetId } = data;
+      userRooms.set(socket.id, targetId.toString());
+      console.log(`[Socket] User ${userId} joined chat with ${targetId}`);
+    });
+
+    socket.on('leave_chat', () => {
+      userRooms.delete(socket.id);
+      console.log(`[Socket] User ${userId} left chat`);
+    });
 
     socket.on('send_message', async (data) => {
       const { content, receiverId } = data;
@@ -52,25 +77,40 @@ const chatSocket = (io) => {
           });
         }
 
+        // Check if receiver is currently looking at this chat
+        const receiverSocketId = users.get(receiverIdStr);
+        const isReceiverInRoom = receiverSocketId && userRooms.get(receiverSocketId) === userId;
+
         const message = await prisma.message.create({
-          data: { content, senderId: userId, receiverId: receiverIdStr, conversationId: conversation.id },
+          data: { 
+            content, 
+            senderId: userId, 
+            receiverId: receiverIdStr, 
+            conversationId: conversation.id,
+            isRead: !!isReceiverInRoom // Mark as read if they are in the room
+          },
           include: { sender: { select: { id: true, name: true, avatar: true, email: true } } }
         });
 
         io.to(receiverIdStr).emit('receive_message', message);
         
-        const senderName = message.sender.name || message.sender.email.split('@')[0];
-        const notification = await prisma.notification.create({
-          data: {
-            userId: receiverIdStr,
-            type: 'CHAT',
-            content: `${senderName}: ${content.substring(0, 50)}`,
-            senderId: userId
-          }
-        });
+        // ONLY create notification if they are NOT in the room
+        if (!isReceiverInRoom) {
+          const senderName = message.sender.name || message.sender.email.split('@')[0];
+          const notification = await prisma.notification.create({
+            data: {
+              userId: receiverIdStr,
+              type: 'CHAT',
+              content: `${senderName}: ${content.substring(0, 50)}`,
+              senderId: userId
+            }
+          });
 
-        io.to(receiverIdStr).emit('new_notification', notification);
-        broadcastUnreadCount(receiverIdStr); // Direct update
+          io.to(receiverIdStr).emit('new_notification', notification);
+          broadcastUnreadCount(receiverIdStr);
+          broadcastUnreadChatsCount(receiverIdStr);
+        }
+        
         socket.emit('message_sent', message);
       } catch (err) {
         console.error('[Socket] Chat error:', err);
@@ -112,6 +152,10 @@ const chatSocket = (io) => {
       }
     });
 
+    socket.on('mark_read', async (data) => {
+      broadcastUnreadChatsCount(userId);
+    });
+
     socket.on('mark_notification_read', async (data) => {
        // Optional: explicit broadcast after marking read
        broadcastUnreadCount(userId);
@@ -144,6 +188,7 @@ const chatSocket = (io) => {
 
     socket.on('disconnect', () => {
       users.delete(userId);
+      userRooms.delete(socket.id);
     });
   });
 };
