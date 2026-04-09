@@ -5,6 +5,10 @@ const upload = require('../../middleware/upload.middleware');
 
 const router = express.Router();
 
+// Public Routes
+router.post('/support', userController.submitSupport);
+
+// Authenticated Routes
 router.get('/me', authMiddleware, userController.getMe);
 router.get('/users', authMiddleware, userController.getAllUsers);
 router.get('/search', authMiddleware, userController.searchUsers);

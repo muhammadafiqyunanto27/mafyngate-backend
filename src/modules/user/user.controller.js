@@ -5,6 +5,17 @@ const fs = require('fs');
 const socketService = require('../../sockets/socketService');
 
 class UserController {
+  async submitSupport(req, res, next) {
+    try {
+      const { name, email, message } = req.body;
+      const logEntry = `[${new Date().toISOString()}] Name: ${name}, Email: ${email}\nMessage: ${message}\n-------------------\n`;
+      fs.appendFileSync(path.join(__dirname, '../../../bug_reports.log'), logEntry);
+      res.status(200).json({ success: true, message: 'Message sent successfully!' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMe(req, res, next) {
     try {
       // req.user is attached by the auth middleware
