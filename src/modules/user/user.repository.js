@@ -29,14 +29,14 @@ class UserRepository {
   async findActivities(userId) {
     const prisma = require('../../config/db');
     
-    // Auto-delete activities older than 7 days
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    // Auto-delete activities older than 1 day
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     
     await prisma.activity.deleteMany({
       where: {
         user_id: userId,
-        createdAt: { lt: oneWeekAgo }
+        createdAt: { lt: oneDayAgo }
       }
     });
 
