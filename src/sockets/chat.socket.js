@@ -2,73 +2,59 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 const prisma = require('../config/db');
 
-const users = new Map(); // Store online users: userId -> socketId
+const users = new Map(); // userId -> socketId
 
 const chatSocket = (io) => {
-  // Middleware for socket authentication
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-    if (!token) return next(new Error('Authentication error: No token provided'));
-
+    if (!token) return next(new Error('Auth error: No token'));
     try {
       const decoded = jwt.verify(token, config.jwt.accessSecret);
       socket.user = decoded;
       next();
     } catch (err) {
-      return next(new Error('Authentication error: Invalid token'));
+      return next(new Error('Auth error: Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
     const userId = socket.user.id.toString();
-    console.log(`[Socket] User Connected: ${userId}`);
+    console.log(`[Socket] User ${userId} connected`);
     
     users.set(userId, socket.id);
     socket.join(userId);
 
-    const sendUnreadCount = async () => {
+    // Function to broadcast unread count to all tabs of a user
+    const broadcastUnreadCount = async (targetUserId) => {
       try {
         const count = await prisma.notification.count({
-          where: { userId, isRead: false }
+          where: { userId: targetUserId.toString(), isRead: false }
         });
-        socket.emit('unread_count', { count });
-      } catch (err) {}
+        io.to(targetUserId.toString()).emit('unread_count', { count });
+      } catch (err) {
+        console.error('[Socket] Unread count error:', err);
+      }
     };
-    sendUnreadCount();
 
-    // Sending a message
+    broadcastUnreadCount(userId);
+
     socket.on('send_message', async (data) => {
       const { content, receiverId } = data;
       const receiverIdStr = receiverId.toString();
       try {
         let conversation = await prisma.conversation.findFirst({
-          where: {
-            participants: {
-              every: { userId: { in: [userId, receiverIdStr] } }
-            }
-          }
+          where: { participants: { every: { userId: { in: [userId, receiverIdStr] } } } }
         });
 
         if (!conversation) {
           conversation = await prisma.conversation.create({
-            data: {
-              participants: {
-                create: [{ userId: userId }, { userId: receiverIdStr }]
-              }
-            }
+            data: { participants: { create: [{ userId: userId }, { userId: receiverIdStr }] } }
           });
         }
 
         const message = await prisma.message.create({
-          data: {
-            content,
-            senderId: userId,
-            receiverId: receiverIdStr,
-            conversationId: conversation.id,
-          },
-          include: {
-            sender: { select: { id: true, name: true, avatar: true, email: true } }
-          }
+          data: { content, senderId: userId, receiverId: receiverIdStr, conversationId: conversation.id },
+          include: { sender: { select: { id: true, name: true, avatar: true, email: true } } }
         });
 
         io.to(receiverIdStr).emit('receive_message', message);
@@ -84,40 +70,27 @@ const chatSocket = (io) => {
         });
 
         io.to(receiverIdStr).emit('new_notification', notification);
+        broadcastUnreadCount(receiverIdStr); // Direct update
         socket.emit('message_sent', message);
       } catch (err) {
         console.error('[Socket] Chat error:', err);
       }
     });
 
-    // Handle follow notifications with deduplication
     socket.on('follow_user', async (data) => {
       const { followingId } = data;
       const followingIdStr = followingId.toString();
-      
       try {
         const sender = await prisma.user.findUnique({ where: { id: userId } });
         const senderName = sender.name || sender.email.split('@')[0];
         
-        // Check mutual follow status
         const isFollowBack = await prisma.follow.findUnique({
-          where: {
-            followerId_followingId: {
-              followerId: followingIdStr,
-              followingId: userId
-            }
-          }
+          where: { followerId_followingId: { followerId: followingIdStr, followingId: userId } }
         });
 
         const content = isFollowBack ? `${senderName} followed you back` : `${senderName} is following you`;
-
-        // UPSERT Notification (Update existing FOLLOW notification from this user or create new)
         const existingNotif = await prisma.notification.findFirst({
-          where: {
-            userId: followingIdStr,
-            senderId: userId,
-            type: 'FOLLOW'
-          }
+          where: { userId: followingIdStr, senderId: userId, type: 'FOLLOW' }
         });
 
         let notification;
@@ -128,26 +101,22 @@ const chatSocket = (io) => {
           });
         } else {
           notification = await prisma.notification.create({
-            data: {
-              userId: followingIdStr,
-              type: 'FOLLOW',
-              content,
-              senderId: userId
-            }
+            data: { userId: followingIdStr, type: 'FOLLOW', content, senderId: userId }
           });
         }
         
-        console.log(`[Socket] Follow Notif emitted to ${followingIdStr}`);
-        io.to(followingIdStr).emit('new_notification', {
-          ...notification,
-          isFollowingSender: !!isFollowBack
-        });
+        io.to(followingIdStr).emit('new_notification', { ...notification, isFollowingSender: !!isFollowBack });
+        broadcastUnreadCount(followingIdStr); // Direct update
       } catch (err) {
         console.error('[Socket] Follow error:', err);
       }
     });
 
-    // WebRTC Signaling
+    socket.on('mark_notification_read', async (data) => {
+       // Optional: explicit broadcast after marking read
+       broadcastUnreadCount(userId);
+    });
+
     socket.on('call_user', (data) => {
       const { userToCall, signalData, from, name, avatar, type } = data;
       io.to(userToCall.toString()).emit('incoming_call', { signal: signalData, from, name, avatar, type });

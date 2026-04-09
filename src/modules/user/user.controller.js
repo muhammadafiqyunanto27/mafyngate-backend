@@ -2,6 +2,7 @@ const userRepository = require('./user.repository');
 const { logActivity } = require('../../utils/activityLogger');
 const path = require('path');
 const fs = require('fs');
+const socketService = require('../../sockets/socketService');
 
 class UserController {
   async getMe(req, res, next) {
@@ -256,6 +257,11 @@ class UserController {
     try {
       const userId = req.user.id;
       await userRepository.clearAllNotifications(userId);
+      
+      // Update real-time count across all tabs
+      const io = socketService.getIo();
+      io.to(userId.toString()).emit('unread_count', { count: 0 });
+
       res.status(200).json({ success: true, message: 'All notifications cleared' });
     } catch (error) {
       next(error);
@@ -266,6 +272,11 @@ class UserController {
     try {
       const userId = req.user.id;
       await userRepository.markAllNotificationsAsRead(userId);
+      
+      // Update real-time count across all tabs
+      const io = socketService.getIo();
+      io.to(userId.toString()).emit('unread_count', { count: 0 });
+
       res.status(200).json({ success: true, message: 'All notifications marked as read' });
     } catch (error) {
       next(error);
