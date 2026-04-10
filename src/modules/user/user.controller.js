@@ -52,6 +52,8 @@ class UserController {
       const updatedUser = await userRepository.updateById(userId, {
         ...(name !== undefined && { name }),
         ...(email !== undefined && { email }),
+        ...(req.body.bio !== undefined && { bio: req.body.bio }),
+        ...(req.body.isPrivate !== undefined && { isPrivate: req.body.isPrivate }),
       });
 
       // Log activity
@@ -149,6 +151,28 @@ class UserController {
     }
   }
 
+  async deleteAvatar(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const user = await userRepository.findById(userId);
+      
+      if (user.avatar && user.avatar.startsWith('/uploads/')) {
+        const oldFile = path.join(__dirname, '../../../', user.avatar);
+        if (fs.existsSync(oldFile)) {
+          fs.unlinkSync(oldFile);
+        }
+      }
+
+      const updatedUser = await userRepository.updateById(userId, { avatar: null });
+      await logActivity(userId, 'PROFILE_UPDATED', 'Removed profile picture');
+
+      const { password, ...safeUser } = updatedUser;
+      res.status(200).json({ success: true, message: 'Avatar removed', data: safeUser });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getAllUsers(req, res, next) {
     try {
       const userId = req.user.id;
@@ -180,6 +204,14 @@ class UserController {
       const currentUserId = req.user.id;
       const senderId = req.params.userId;
       await userRepository.updateMessagesReadStatus(currentUserId, senderId);
+      
+      // Update real-time unread counts for recipient (current user)
+      const io = socketService.getIo();
+      io.to(currentUserId.toString()).emit('unread_chats_count_refresh');
+      
+      // Notify sender that messages were read
+      io.to(senderId.toString()).emit('messages_read', { by: currentUserId });
+
       res.status(200).json({ success: true, message: 'Messages marked as read' });
     } catch (error) {
       next(error);
@@ -192,11 +224,18 @@ class UserController {
       const userId = req.user.id;
       const users = await userRepository.searchUsers(q, userId);
       
-      const mappedUsers = users.map(u => ({
-        ...u,
-        isFollowing: u.followers.length > 0,
-        followsMe: u.following.length > 0
-      }));
+      const mappedUsers = users.map(u => {
+        const myFollow = u.followers[0]; // People following THEM (including ME)
+        const theirFollow = u.following[0]; // People THEY follow (including ME)
+        
+        return {
+          ...u,
+          isFollowing: !!myFollow,
+          followStatus: myFollow?.status || 'NONE',
+          followsMe: !!theirFollow,
+          theirFollowStatus: theirFollow?.status || 'NONE'
+        };
+      });
 
       res.status(200).json({ success: true, data: mappedUsers });
     } catch (error) {
@@ -208,12 +247,76 @@ class UserController {
     try {
       const followerId = req.user.id;
       const followingId = req.params.userId;
-      await userRepository.follow(followerId, followingId);
-      res.status(200).json({ success: true, message: 'Followed successfully' });
-    } catch (error) {
-      if (error.code === 'P2002') {
-        return res.status(400).json({ success: false, message: 'Already following' });
+      
+      if (followerId === followingId) {
+        return res.status(400).json({ success: false, message: 'Self-follow not allowed' });
       }
+
+      const targetUser = await userRepository.findById(followingId);
+      if (!targetUser) return res.status(404).json({ success: false, message: 'Target user not found' });
+
+      // 1. Check if WE are already being followed by them (PENDING or ACCEPTED)
+      const prism = require('../../config/db');
+      const inboundFollow = await prism.follow.findUnique({
+        where: { followerId_followingId: { followerId: followingId, followingId: followerId } }
+      });
+
+      // 2. Determine our NEW status for following them
+      let status = targetUser.isPrivate ? 'PENDING' : 'ACCEPTED';
+      
+      // 3. Follback Logic: If they are already following US, and WE follow them back,
+      // we might want to automatically ACCEPT their request if it was PENDING.
+      if (inboundFollow && inboundFollow.status === 'PENDING') {
+         await userRepository.updateFollowStatus(followingId, followerId, 'ACCEPTED');
+         // If we follow them back, and they are public, we should both be ACCEPTED
+         // but if they are private, we still start as PENDING for THEM unless we want auto-accept mutuals
+         // Let's make it so following back a pending user makes both ACCEPTED for better UX
+         status = 'ACCEPTED';
+      }
+
+      // 4. Create or Update Follow record (Upsert)
+      await prism.follow.upsert({
+        where: { followerId_followingId: { followerId, followingId } },
+        update: { status },
+        create: { followerId, followingId, status }
+      });
+      
+      const follower = await userRepository.findById(followerId);
+      const isMutual = inboundFollow && inboundFollow.status === 'ACCEPTED';
+      
+      // 5. Custom notification based on context
+      let notifyType = status === 'PENDING' ? 'CONNECTION_REQUEST' : 'FOLLOW';
+      let content = status === 'PENDING' 
+        ? `${follower.name || follower.email} wants to connect`
+        : (inboundFollow ? `${follower.name || follower.email} followed you back` : `${follower.name || follower.email} started following you`);
+      
+      const notification = await userRepository.createNotification({
+        userId: followingId,
+        senderId: followerId,
+        type: notifyType,
+        content
+      });
+
+      const io = socketService.getIo();
+      io.to(followingId.toString()).emit('new_notification', {
+        id: notification.id,
+        type: notifyType,
+        content,
+        senderId: followerId,
+        isMutual: status === 'ACCEPTED',
+        createdAt: new Date()
+      });
+
+      // 6. Broadcast updates
+      io.to(followerId.toString()).emit('connection_update', { targetId: followingId, status });
+      io.to(followingId.toString()).emit('connection_update', { targetId: followerId, status: status === 'ACCEPTED' ? 'ACCEPTED' : 'RECEIVED_REQUEST' });
+
+      res.status(200).json({ 
+        success: true, 
+        message: status === 'PENDING' ? 'Request sent' : 'Connected successfully',
+        status 
+      });
+    } catch (error) {
       next(error);
     }
   }
@@ -235,6 +338,11 @@ class UserController {
       });
 
       res.status(200).json({ success: true, message: 'Unfollowed successfully' });
+
+      // Notify both parties of the disconnection
+      const io = socketService.getIo();
+      io.to(followerId.toString()).emit('connection_update', { targetId: followingId, status: 'NONE' });
+      io.to(followingId.toString()).emit('connection_update', { targetId: followerId, status: 'NONE' });
     } catch (error) {
       next(error);
     }
@@ -319,6 +427,12 @@ class UserController {
       }
 
       const updated = await userRepository.updateMessage(userId, messageId, content);
+      
+      // Update real-time for both participants
+      const io = socketService.getIo();
+      io.to(userId.toString()).emit('message_updated', updated);
+      io.to(updated.receiverId.toString()).emit('message_updated', updated);
+
       res.status(200).json({ success: true, data: updated });
     } catch (error) {
       next(error);
@@ -365,6 +479,17 @@ class UserController {
       }
 
       await userRepository.deleteMessages(userId, messageIds);
+      
+      // Emit real-time event so other side can clear these messages
+      const io = socketService.getIo();
+      // Since we don't know the recipient easily here without fetching, 
+      // we can broadcast to the room if we had rooms, or just let frontend handle local first
+      // Better: we can include the targetId in the request body from frontend
+      const { targetId } = req.body;
+      if (targetId) {
+        io.to(targetId.toString()).emit('messages_deleted', { messageIds });
+      }
+
       res.status(200).json({ success: true, message: 'Messages deleted successfully' });
     } catch (error) {
       next(error);
@@ -440,6 +565,15 @@ class UserController {
       const userId = req.user.id;
       const { targetId } = req.params;
       await userRepository.deleteFullConversation(userId, targetId);
+      
+      // Notify other party via socket
+      const io = socketService.getIo();
+      io.to(targetId.toString()).emit('messages_deleted', { 
+        messageIds: [], // All messages
+        everyone: true,
+        by: userId
+      });
+      
       res.status(200).json({ success: true, message: 'Full conversation deleted' });
     } catch (error) {
       next(error);
@@ -459,6 +593,144 @@ class UserController {
         }
       });
       res.status(200).json({ success: true, message: 'Notifications cleared' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async acceptConnection(req, res, next) {
+    try {
+      const userId = req.user.id; // The one who is being followed
+      const requesterId = req.params.userId; // The one who requested
+
+      await userRepository.updateFollowStatus(requesterId, userId, 'ACCEPTED');
+      
+      // Notify the requester
+      const acceptor = await userRepository.findById(userId);
+      const content = `${acceptor.name || acceptor.email} accepted your connection request`;
+      
+      const notification = await userRepository.createNotification({
+        userId: requesterId,
+        senderId: userId,
+        type: 'CONNECTION_ACCEPTED',
+        content
+      });
+
+      // Emit real-time notification
+      const io = socketService.getIo();
+      io.to(requesterId.toString()).emit('new_notification', {
+        id: notification.id,
+        type: 'CONNECTION_ACCEPTED',
+        content,
+        senderId: userId,
+        createdAt: new Date()
+      });
+
+      res.status(200).json({ success: true, message: 'Connection accepted' });
+
+      // Signal both users to refresh their connection status
+      io.to(userId.toString()).emit('connection_update', { targetId: requesterId, status: 'ACCEPTED' });
+      io.to(requesterId.toString()).emit('connection_update', { targetId: userId, status: 'ACCEPTED' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async declineConnection(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const requesterId = req.params.userId;
+
+      await userRepository.unfollow(requesterId, userId);
+      
+      // Notify the requester
+      const decliner = await userRepository.findById(userId);
+      const content = `${decliner.name || decliner.email} declined your connection request`;
+      
+      const notification = await userRepository.createNotification({
+        userId: requesterId,
+        senderId: userId,
+        type: 'CONNECTION_DECLINED',
+        content
+      });
+      
+      const io = socketService.getIo();
+      io.to(requesterId.toString()).emit('new_notification', {
+        id: notification.id,
+        type: 'CONNECTION_DECLINED',
+        content,
+        senderId: userId,
+        createdAt: new Date()
+      });
+
+      res.status(200).json({ success: true, message: 'Connection declined' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPendingRequests(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const requests = await userRepository.findPendingRequests(userId);
+      res.status(200).json({ success: true, data: requests });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getProfile(req, res, next) {
+    try {
+      const currentUserId = req.user.id;
+      const targetId = req.params.userId;
+      
+      const user = await userRepository.findById(targetId);
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      // Check connection status
+      const prisma = require('../../config/db');
+      const connection = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: currentUserId,
+            followingId: targetId
+          }
+        }
+      });
+
+      const isFollowing = connection?.status === 'ACCEPTED';
+      const isPending = connection?.status === 'PENDING';
+
+      // Check if THEY follow ME (for Follow Back logic)
+      const inbound = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: targetId,
+            followingId: currentUserId
+          }
+        }
+      });
+      const followsMe = !!inbound;
+      const inboundStatus = inbound?.status || 'NONE';
+
+      // Privacy Logic
+      // If private and not following, hide sensitive data
+      const shouldHide = user.isPrivate && !isFollowing && currentUserId !== targetId;
+
+      const safeProfile = {
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        bio: shouldHide ? null : user.bio,
+        isPrivate: user.isPrivate,
+        isFollowing,
+        isPending,
+        followsMe,
+        inboundStatus,
+        email: shouldHide ? null : user.email // Hide email if private
+      };
+
+      res.status(200).json({ success: true, data: safeProfile });
     } catch (error) {
       next(error);
     }

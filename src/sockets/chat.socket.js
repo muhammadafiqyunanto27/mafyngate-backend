@@ -205,6 +205,20 @@ const chatSocket = (io) => {
       socket.emit('user_status', { userId: targetId.toString(), status: isOnline ? 'online' : 'offline' });
     });
 
+    socket.on('messages_deleted', (data) => {
+      const { targetId, messageIds, everyone } = data;
+      // Broadcast to the other user
+      io.to(targetId.toString()).emit('messages_deleted', { messageIds, everyone });
+      // Update unread counts
+      broadcastUnreadChatsCount(userId);
+      broadcastUnreadChatsCount(targetId.toString());
+    });
+
+    socket.on('connection_update', (data) => {
+      const { targetId, status } = data;
+      io.to(targetId.toString()).emit('connection_update', { targetId: userId, status });
+    });
+
     socket.on('disconnect', () => {
       users.delete(userId);
       userRooms.delete(socket.id);

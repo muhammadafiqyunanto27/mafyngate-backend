@@ -103,6 +103,8 @@ class UserRepository {
         name: true,
         email: true,
         avatar: true,
+        bio: true,
+        isPrivate: true,
         followers: {
           where: { followerId: currentUserId }
         },
@@ -113,10 +115,35 @@ class UserRepository {
     });
   }
 
-  async follow(followerId, followingId) {
+  async follow(followerId, followingId, status = 'ACCEPTED') {
     const prisma = require('../../config/db');
     return await prisma.follow.create({
-      data: { followerId, followingId }
+      data: { followerId, followingId, status }
+    });
+  }
+
+  async updateFollowStatus(followerId, followingId, status) {
+    const prisma = require('../../config/db');
+    return await prisma.follow.update({
+      where: {
+        followerId_followingId: { followerId, followingId }
+      },
+      data: { status }
+    });
+  }
+
+  async findPendingRequests(userId) {
+    const prisma = require('../../config/db');
+    return await prisma.follow.findMany({
+      where: {
+        followingId: userId,
+        status: 'PENDING'
+      },
+      include: {
+        follower: {
+          select: { id: true, name: true, email: true, avatar: true, bio: true }
+        }
+      }
     });
   }
 
@@ -159,12 +186,13 @@ class UserRepository {
 
   async findConnections(userId) {
     const prisma = require('../../config/db');
-    // Get all follows where current user is involved
-    const connections = await prisma.follow.findMany({
+    
+    // 1. Get all friends (ACCEPTED)
+    const follows = await prisma.follow.findMany({
       where: {
         OR: [
-          { followerId: userId },
-          { followingId: userId },
+          { followerId: userId, status: 'ACCEPTED' },
+          { followingId: userId, status: 'ACCEPTED' },
         ],
       },
       include: {
@@ -173,16 +201,43 @@ class UserRepository {
       },
     });
 
+    // 2. Get all users with message history
+    const messagedUsers = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+        sender: true,
+        receiver: true
+      },
+      distinct: ['senderId', 'receiverId']
+    });
+
     // Map to unique other users
     const userMap = new Map();
-    connections.forEach(conn => {
+    
+    // Add from follows
+    follows.forEach(conn => {
       const otherUser = conn.followerId === userId ? conn.following : conn.follower;
       if (otherUser.id !== userId) {
         userMap.set(otherUser.id, otherUser);
       }
     });
 
-    const users = Array.from(userMap.values());
+    // Add from message history
+    messagedUsers.forEach(msg => {
+      const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
+      if (otherUser && otherUser.id !== userId) {
+        userMap.set(otherUser.id, otherUser);
+      }
+    });
+
+    const users = Array.from(userMap.values()).map(({ password, ...u }) => u);
 
     // Enrich with last message info
     const enrichedUsers = await Promise.all(users.map(async (u) => {

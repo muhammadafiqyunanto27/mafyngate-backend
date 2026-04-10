@@ -28,7 +28,8 @@ router.get('/notifications/unread-count', authMiddleware, userController.getUnre
 router.delete('/chat/messages', authMiddleware, userController.deleteChatMessages);
 router.patch('/chat/message', authMiddleware, userController.editChatMessage);
 router.patch('/me', authMiddleware, userController.updateMe);
-router.patch('/avatar', authMiddleware, upload.single('avatar'), userController.updateAvatar);
+router.post('/avatar', authMiddleware, upload.single('avatar'), userController.updateAvatar);
+router.delete('/avatar', authMiddleware, userController.deleteAvatar);
 router.patch('/password', authMiddleware, userController.changePassword);
 
 // Chat Lock & Hide Routes
@@ -40,5 +41,11 @@ router.delete('/chat/conversation/:targetId', authMiddleware, userController.del
 
 router.get('/activities', authMiddleware, userController.getActivities);
 router.delete('/me', authMiddleware, userController.deleteMe);
+
+// Profile & Connection Management
+router.get('/profile/:userId', authMiddleware, userController.getProfile);
+router.get('/requests/pending', authMiddleware, userController.getPendingRequests);
+router.post('/requests/accept/:userId', authMiddleware, userController.acceptConnection);
+router.post('/requests/decline/:userId', authMiddleware, userController.declineConnection);
 
 module.exports = router;

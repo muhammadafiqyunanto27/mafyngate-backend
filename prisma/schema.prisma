@@ -11,6 +11,8 @@ model User {
   id        String    @id @default(uuid())
   email     String    @unique
   name      String?
+  bio       String?   @default("")
+  isPrivate Boolean   @default(false)
   password  String
   avatar    String?   @default("")
   createdAt DateTime  @default(now())
@@ -55,10 +57,16 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
 model Follow {
   id          String   @id @default(uuid())
   followerId  String
   followingId String
+  status      FollowStatus @default(ACCEPTED)
   createdAt   DateTime @default(now())
 
   follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
