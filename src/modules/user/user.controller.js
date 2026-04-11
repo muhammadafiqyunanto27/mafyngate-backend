@@ -499,15 +499,33 @@ class UserController {
         return res.status(400).json({ success: false, message: 'Invalid message IDs' });
       }
 
+      const prisma = require('../../config/db');
+      
+      // 1. Fetch messages first to find associated files
+      const messagesToDelete = await prisma.message.findMany({
+        where: { id: { in: messageIds }, senderId: userId }
+      });
+
+      // 2. Physical File Deletion
+      for (const msg of messagesToDelete) {
+        if (msg.fileUrl) {
+          const filePath = path.join(__dirname, '../../../', msg.fileUrl);
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch (err) {
+              console.error(`Failed to delete file: ${filePath}`, err);
+            }
+          }
+        }
+      }
+
+      // 3. Database Deletion
       await userRepository.deleteMessages(userId, messageIds);
       
-      // Emit real-time event so other side can clear these messages
-      const io = socketService.getIo();
-      // Since we don't know the recipient easily here without fetching, 
-      // we can broadcast to the room if we had rooms, or just let frontend handle local first
-      // Better: we can include the targetId in the request body from frontend
       const { targetId } = req.body;
       if (targetId) {
+        const io = socketService.getIo();
         io.to(targetId.toString()).emit('messages_deleted', { messageIds });
       }
 
@@ -585,9 +603,31 @@ class UserController {
     try {
       const userId = req.user.id;
       const { targetId } = req.params;
-      await userRepository.deleteFullConversation(userId, targetId);
+      const prisma = require('../../config/db');
+      const conversation = await prisma.conversation.findFirst({
+        where: { participants: { every: { userId: { in: [userId, targetId] } } } }
+      });
+
+      if (conversation) {
+        // 1. Fetch ALL messages in this conversation to find files
+        const messages = await prisma.message.findMany({
+          where: { conversationId: conversation.id }
+        });
+
+        // 2. Delete physical files
+        for (const msg of messages) {
+          if (msg.fileUrl) {
+            const filePath = path.join(__dirname, '../../../', msg.fileUrl);
+            if (fs.existsSync(filePath)) {
+              try { fs.unlinkSync(filePath); } catch (e) {}
+            }
+          }
+        }
+
+        // 3. Database Cleanup
+        await userRepository.deleteFullConversation(userId, targetId);
+      }
       
-      // Notify other party via socket
       const io = socketService.getIo();
       io.to(targetId.toString()).emit('messages_deleted', { 
         messageIds: [], // All messages
