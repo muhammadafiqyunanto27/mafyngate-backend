@@ -67,7 +67,7 @@ const chatSocket = (io) => {
     });
 
     socket.on('send_message', async (data) => {
-      const { content, receiverId } = data;
+      const { content, receiverId, type, fileUrl, fileName, fileSize, parentId } = data;
       const receiverIdStr = receiverId.toString();
       try {
         let conversation = await prisma.conversation.findFirst({
@@ -86,13 +86,25 @@ const chatSocket = (io) => {
 
         const message = await prisma.message.create({
           data: { 
-            content, 
+            content: content || fileName || 'File', 
             senderId: userId, 
             receiverId: receiverIdStr, 
             conversationId: conversation.id,
-            isRead: !!isReceiverInRoom // Mark as read if they are in the room
+            isRead: !!isReceiverInRoom,
+            type: type || 'TEXT',
+            fileUrl,
+            fileName,
+            fileSize,
+            parentId: parentId || null
           },
-          include: { sender: { select: { id: true, name: true, avatar: true, email: true } } }
+          include: { 
+            sender: { select: { id: true, name: true, avatar: true, email: true } },
+            parent: {
+              include: {
+                sender: { select: { id: true, name: true } }
+              }
+            }
+          }
         });
 
         io.to(receiverIdStr).emit('receive_message', message);
@@ -120,40 +132,6 @@ const chatSocket = (io) => {
       }
     });
 
-    socket.on('follow_user', async (data) => {
-      const { followingId } = data;
-      const followingIdStr = followingId.toString();
-      try {
-        const sender = await prisma.user.findUnique({ where: { id: userId } });
-        const senderName = sender.name || sender.email.split('@')[0];
-        
-        const isFollowBack = await prisma.follow.findUnique({
-          where: { followerId_followingId: { followerId: followingIdStr, followingId: userId } }
-        });
-
-        const content = isFollowBack ? `${senderName} followed you back` : `${senderName} is following you`;
-        const existingNotif = await prisma.notification.findFirst({
-          where: { userId: followingIdStr, senderId: userId, type: 'FOLLOW' }
-        });
-
-        let notification;
-        if (existingNotif) {
-          notification = await prisma.notification.update({
-            where: { id: existingNotif.id },
-            data: { content, isRead: false, createdAt: new Date() }
-          });
-        } else {
-          notification = await prisma.notification.create({
-            data: { userId: followingIdStr, type: 'FOLLOW', content, senderId: userId }
-          });
-        }
-        
-        io.to(followingIdStr).emit('new_notification', { ...notification, isFollowingSender: !!isFollowBack });
-        broadcastUnreadCount(followingIdStr); // Direct update
-      } catch (err) {
-        console.error('[Socket] Follow error:', err);
-      }
-    });
 
     socket.on('mark_read', async (data) => {
       broadcastUnreadChatsCount(userId);

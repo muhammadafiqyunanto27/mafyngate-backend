@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('./user.controller');
 const authMiddleware = require('../../middleware/auth.middleware');
+const chatUpload = require('../../middleware/chatUpload.middleware');
 const upload = require('../../middleware/upload.middleware');
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.get('/chat/unread-conversations', authMiddleware, userController.getUnrea
 router.get('/notifications/unread-count', authMiddleware, userController.getUnreadNotificationCount);
 router.delete('/chat/messages', authMiddleware, userController.deleteChatMessages);
 router.patch('/chat/message', authMiddleware, userController.editChatMessage);
+router.post('/chat/upload', authMiddleware, chatUpload.single('file'), userController.uploadChatFile);
 router.patch('/me', authMiddleware, userController.updateMe);
 router.post('/avatar', authMiddleware, upload.single('avatar'), userController.updateAvatar);
 router.delete('/avatar', authMiddleware, userController.deleteAvatar);
@@ -36,6 +38,7 @@ router.patch('/password', authMiddleware, userController.changePassword);
 router.post('/chat/lock-password', authMiddleware, userController.setChatLockPassword);
 router.post('/chat/unlock', authMiddleware, userController.unlockHiddenChats);
 router.post('/chat/hide', authMiddleware, userController.toggleHideConversation);
+router.patch('/chat/pin/:targetId', authMiddleware, userController.togglePinConversation);
 router.delete('/chat/lock-reset', authMiddleware, userController.resetHiddenChats);
 router.delete('/chat/conversation/:targetId', authMiddleware, userController.deleteFullConversation);
 

@@ -55,20 +55,6 @@ class UserRepository {
     return await UserModel.findMany();
   }
 
-  async findMessagesByUsers(user1Id, user2Id) {
-    const prisma = require('../../config/db');
-    return await prisma.message.findMany({
-      where: {
-        OR: [
-          { senderId: user1Id, receiverId: user2Id },
-          { senderId: user2Id, receiverId: user1Id },
-        ],
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-  }
 
   async updateMessagesReadStatus(receiverId, senderId) {
     const prisma = require('../../config/db');
@@ -239,9 +225,9 @@ class UserRepository {
 
     const users = Array.from(userMap.values()).map(({ password, ...u }) => u);
 
-    // Enrich with last message info
+    // Enrich with last message info and pinned status
     const enrichedUsers = await Promise.all(users.map(async (u) => {
-      const [lastMsg, unreadCount] = await Promise.all([
+      const [lastMsg, unreadCount, participant] = await Promise.all([
         prisma.message.findFirst({
           where: {
             OR: [
@@ -257,12 +243,19 @@ class UserRepository {
             senderId: u.id,
             isRead: false
           }
+        }),
+        prisma.conversationParticipant.findFirst({
+          where: {
+            userId: userId,
+            conversation: { participants: { some: { userId: u.id } } }
+          }
         })
       ]);
 
       return {
         ...u,
         unreadCount,
+        isPinned: participant?.isPinned || false,
         lastMessage: lastMsg ? {
           content: lastMsg.content,
           createdAt: lastMsg.createdAt
@@ -270,8 +263,10 @@ class UserRepository {
       };
     }));
 
-    // Sort by last message time (descending)
+    // Sort: Pinned first, then by last message time
     return enrichedUsers.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
       const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
       const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
       return timeB - timeA;
@@ -354,6 +349,24 @@ class UserRepository {
           select: { id: true, name: true, avatar: true, email: true }
         }
       }
+    });
+  }
+
+  async findMessagesByUsers(user1, user2) {
+    const prisma = require('../../config/db');
+    return await prisma.message.findMany({
+      where: {
+        conversation: { participants: { every: { userId: { in: [user1, user2] } } } }
+      },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true, email: true } },
+        parent: {
+          include: {
+            sender: { select: { id: true, name: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
     });
   }
 

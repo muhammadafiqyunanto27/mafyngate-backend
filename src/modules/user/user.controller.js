@@ -439,6 +439,27 @@ class UserController {
     }
   }
 
+  async uploadChatFile(req, res, next) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+      
+      const fileUrl = `/uploads/chat/${req.file.filename}`;
+      res.status(200).json({ 
+        success: true, 
+        data: { 
+          url: fileUrl,
+          name: req.file.originalname,
+          size: req.file.size,
+          type: req.file.mimetype 
+        } 
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getUnreadCount(req, res, next) {
     try {
       const userId = req.user.id;
@@ -575,6 +596,36 @@ class UserController {
       });
       
       res.status(200).json({ success: true, message: 'Full conversation deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async togglePinConversation(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { targetId } = req.params;
+      const prisma = require('../../config/db');
+      
+      // Find conversation between these users
+      const conversation = await prisma.conversation.findFirst({
+        where: { participants: { every: { userId: { in: [userId, targetId] } } } }
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+
+      const participant = await prisma.conversationParticipant.findUnique({
+        where: { conversationId_userId: { conversationId: conversation.id, userId } }
+      });
+
+      const updated = await prisma.conversationParticipant.update({
+        where: { id: participant.id },
+        data: { isPinned: !participant.isPinned }
+      });
+
+      res.status(200).json({ success: true, data: { isPinned: updated.isPinned } });
     } catch (error) {
       next(error);
     }
