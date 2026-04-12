@@ -167,6 +167,11 @@ const chatSocket = (io) => {
       io.to(to.toString()).emit('remote_mirror_toggled', { isMirrored });
     });
 
+    socket.on('media_state_changed', (data) => {
+      const { to, type, isEnabled } = data;
+      io.to(to.toString()).emit('remote_media_changed', { type, isEnabled });
+    });
+
     socket.on('typing', (data) => {
       const { to } = data;
       io.to(to.toString()).emit('user_typing', { from: userId });
