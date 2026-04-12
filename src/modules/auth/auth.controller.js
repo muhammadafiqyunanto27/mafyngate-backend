@@ -43,17 +43,22 @@ class AuthController {
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
       const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
       
-      // Cookie options - Optimized for Cross-Browser & Mobile compatibility
+      // Cookie options - Optimized for Cross-Browser & PERSISTENCE on Localhost
+      // Note: sameSite 'none' requires 'secure: true'. 
+      // Most browsers allow secure: true on localhost even without HTTPS.
       const cookieOptions = {
         httpOnly: true,
-        secure: isSecure || isProduction, 
-        sameSite: (isSecure || isProduction) ? 'none' : 'lax', 
+        secure: isProduction || isSecure, 
+        sameSite: isProduction || isSecure ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/',
       };
 
-      if (cookieOptions.secure) {
-        cookieOptions.partitioned = true;
+      // Special handling for localhost cross-origin dev if necessary
+      if (!isProduction && req.headers.origin && req.headers.origin.includes('localhost')) {
+         // Some browsers/environments prefer lax for localhost if not using https
+         cookieOptions.sameSite = 'lax';
+         cookieOptions.secure = false; 
       }
 
       // Send refresh token as HTTP Only cookie
