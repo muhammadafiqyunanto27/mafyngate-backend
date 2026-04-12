@@ -41,16 +41,18 @@ class AuthController {
       const result = await authService.login(email, password, metadata);
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
       
-      // Cookie options
+      // Cookie options - Optimized for Cross-Browser & Mobile compatibility
       const cookieOptions = {
         httpOnly: true,
-        secure: isProduction, // Use secure only in production
-        sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site, 'lax' in dev
+        secure: isSecure || isProduction, 
+        sameSite: (isSecure || isProduction) ? 'none' : 'lax', 
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       };
 
-      if (isProduction) {
+      if (cookieOptions.secure) {
         cookieOptions.partitioned = true;
       }
 
@@ -88,13 +90,15 @@ class AuthController {
       }
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
       
       // Clear cookie regardless
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        partitioned: isProduction
+        secure: isSecure || isProduction,
+        sameSite: (isSecure || isProduction) ? 'none' : 'lax',
+        path: '/',
+        partitioned: isSecure || isProduction
       });
       res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
@@ -110,12 +114,14 @@ class AuthController {
       }
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+      const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
       
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        partitioned: isProduction
+        secure: isSecure || isProduction,
+        sameSite: (isSecure || isProduction) ? 'none' : 'lax',
+        path: '/',
+        partitioned: isSecure || isProduction
       });
       res.status(200).json({ success: true, message: 'Logged out from all devices' });
     } catch (error) {

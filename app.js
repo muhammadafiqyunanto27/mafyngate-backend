@@ -14,12 +14,25 @@ if (!fs.existsSync(uploadDir)) {
 
 const app = express();
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://mafyngate.vercel.app'
+];
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    'http://localhost:3000',
-    'https://mafyngate.vercel.app' // Vercel production domain
-  ],
+  origin: (origin, callback) => {
+    // Check if origin is allowed
+    if (!origin || allowedOrigins.includes(origin) || 
+        origin.startsWith('http://192.168.') || 
+        origin.startsWith('http://10.') || 
+        origin.startsWith('http://172.')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
