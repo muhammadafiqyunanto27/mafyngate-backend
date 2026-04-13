@@ -48,10 +48,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./src/modules/auth/auth.route');
 const userRoutes = require('./src/modules/user/user.route');
 const todoRoutes = require('./src/modules/todo/todo.route');
+const pushRoutes = require('./src/modules/push/push.router');
 
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/todo', todoRoutes);
+app.use('/push', pushRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

@@ -576,7 +576,7 @@ class UserController {
       const bcrypt = require('bcrypt');
       const isMatch = await bcrypt.compare(password, user.chatLockPassword);
       if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid lock password' });
+        return res.status(403).json({ success: false, message: 'Invalid lock password' });
       }
 
       const connections = await userRepository.findConnections(userId);
