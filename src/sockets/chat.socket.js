@@ -3,7 +3,7 @@ const config = require('../config/env');
 const prisma = require('../config/db');
 const PushController = require('../modules/push/push.controller');
 
-const users = new Map(); // userId -> socketId
+const users = new Map(); // userId -> Set of socketIds
 const userRooms = new Map(); // socketId -> targetUserId (who they are chatting with)
 
 const chatSocket = (io) => {
@@ -23,7 +23,8 @@ const chatSocket = (io) => {
     const userId = socket.user.id.toString();
     console.log(`[Socket] User ${userId} connected`);
     
-    users.set(userId, socket.id);
+    if (!users.has(userId)) users.set(userId, new Set());
+    users.get(userId).add(socket.id);
     socket.join(userId);
 
     // Broadcast that this user is now online to anyone interested
@@ -81,9 +82,15 @@ const chatSocket = (io) => {
           });
         }
 
-        // Check if receiver is currently looking at this chat
-        const receiverSocketId = users.get(receiverIdStr);
-        const isReceiverInRoom = receiverSocketId && userRooms.get(receiverSocketId) === userId;
+        // Check if receiver is currently looking at this chat across any of their active tabs
+        const receiverSockets = users.get(receiverIdStr) || new Set();
+        let isReceiverInRoom = false;
+        for (const sid of receiverSockets) {
+          if (userRooms.get(sid) === userId) {
+            isReceiverInRoom = true;
+            break;
+          }
+        }
 
         const message = await prisma.message.create({
           data: { 
@@ -222,9 +229,14 @@ const chatSocket = (io) => {
     });
 
     socket.on('disconnect', () => {
-      users.delete(userId);
+      if (users.has(userId)) {
+        users.get(userId).delete(socket.id);
+        if (users.get(userId).size === 0) {
+          users.delete(userId);
+          io.emit('user_status', { userId, status: 'offline' });
+        }
+      }
       userRooms.delete(socket.id);
-      io.emit('user_status', { userId, status: 'offline' });
     });
   });
 };
