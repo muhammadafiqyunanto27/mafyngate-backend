@@ -128,15 +128,19 @@ class UserController {
         return res.status(400).json({ success: false, message: 'No file uploaded' });
       }
 
-      const avatarPath = `/uploads/${req.file.filename}`;
+      const avatarPath = req.file.path;
       
       const user = await userRepository.findById(userId);
       
       // Delete old avatar if it exists and is not the default
       if (user.avatar && user.avatar.startsWith('/uploads/')) {
         const oldFile = path.join(__dirname, '../../../', user.avatar);
-        if (fs.existsSync(oldFile)) {
-          fs.unlinkSync(oldFile);
+        try {
+          if (fs.existsSync(oldFile)) {
+            fs.unlinkSync(oldFile);
+          }
+        } catch (unlinkErr) {
+          console.error('Failed to delete old avatar:', unlinkErr.message);
         }
       }
 
@@ -158,8 +162,12 @@ class UserController {
       
       if (user.avatar && user.avatar.startsWith('/uploads/')) {
         const oldFile = path.join(__dirname, '../../../', user.avatar);
-        if (fs.existsSync(oldFile)) {
-          fs.unlinkSync(oldFile);
+        try {
+          if (fs.existsSync(oldFile)) {
+            fs.unlinkSync(oldFile);
+          }
+        } catch (unlinkErr) {
+          console.error('Failed to delete avatar:', unlinkErr.message);
         }
       }
 
@@ -445,11 +453,10 @@ class UserController {
         return res.status(400).json({ success: false, message: 'No file uploaded' });
       }
       
-      const fileUrl = `/uploads/chat/${req.file.filename}`;
       res.status(200).json({ 
         success: true, 
         data: { 
-          url: fileUrl,
+          url: req.file.path,
           name: req.file.originalname,
           size: req.file.size,
           type: req.file.mimetype 
