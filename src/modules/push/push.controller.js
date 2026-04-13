@@ -1,11 +1,15 @@
 const prisma = require('../../config/db');
 const webpush = require('web-push');
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || 'mailto:example@yourdomain.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL || 'mailto:example@yourdomain.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn('[Push] VAPID keys not configured. Push notifications will be disabled.');
+}
 
 class PushController {
   async subscribe(req, res, next) {
