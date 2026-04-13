@@ -30,6 +30,11 @@ class UserController {
       // Security: Strip password and sensitive hashes from returned user data
       const { password, chatLockPassword, ...safeUser } = user;
       
+      // Auto-fallback for name if empty
+      if (!safeUser.name && safeUser.email) {
+        safeUser.name = safeUser.email.split('@')[0];
+      }
+      
       res.status(200).json({ 
         success: true, 
         message: 'User fetched successfully', 
@@ -188,7 +193,10 @@ class UserController {
       
       const filteredUsers = users
         .filter(user => user.id !== userId)
-        .map(({ password, ...user }) => user);
+        .map(({ password, email, ...u }) => ({
+          ...u,
+          name: u.name || email.split('@')[0]
+        }));
 
       res.status(200).json({ success: true, data: filteredUsers });
     } catch (error) {
@@ -233,11 +241,13 @@ class UserController {
       const users = await userRepository.searchUsers(q, userId);
       
       const mappedUsers = users.map(u => {
-        const myFollow = u.followers[0]; // People following THEM (including ME)
-        const theirFollow = u.following[0]; // People THEY follow (including ME)
+        const myFollow = u.followers[0];
+        const theirFollow = u.following[0];
         
         return {
-          ...u,
+          id: u.id,
+          name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
+          avatar: u.avatar,
           isFollowing: !!myFollow,
           followStatus: myFollow?.status || 'NONE',
           followsMe: !!theirFollow,
@@ -368,7 +378,13 @@ class UserController {
         filtered = connections.filter(c => !hiddenIds.includes(c.id));
       }
 
-      res.status(200).json({ success: true, data: filtered });
+      const mappedConnections = filtered.map(u => ({
+        ...u,
+        email: undefined, // Hide email for privacy
+        name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown')
+      }));
+
+      res.status(200).json({ success: true, data: mappedConnections });
     } catch (error) {
       next(error);
     }
@@ -817,7 +833,7 @@ class UserController {
 
       const safeProfile = {
         id: user.id,
-        name: user.name,
+        name: user.name || user.email.split('@')[0],
         avatar: user.avatar,
         bio: shouldHide ? null : user.bio,
         isPrivate: user.isPrivate,
@@ -825,7 +841,7 @@ class UserController {
         isPending,
         followsMe,
         inboundStatus,
-        email: shouldHide ? null : user.email // Hide email if private
+        email: currentUserId === targetId ? user.email : undefined // Hide email for everyone except owner
       };
 
       res.status(200).json({ success: true, data: safeProfile });
