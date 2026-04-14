@@ -18,20 +18,30 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://mafyngate.vercel.app'
-];
+  'https://mafyngate.vercel.app',
+  'https://mafyn-gate.vercel.app'
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Check if origin is allowed
-    if (!origin || allowedOrigins.includes(origin) || 
-        origin.startsWith('http://192.168.') || 
-        origin.startsWith('http://10.') || 
-        origin.startsWith('http://172.')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // 1. Allow internal/server-to-server or development tools (no origin)
+    if (!origin) return callback(null, true);
+
+    // 2. Allow explicitly listed origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // 3. Allow typical local network development IPs (for mobile testing)
+    const isLocalNetwork = 
+      origin.startsWith('http://192.168.') || 
+      origin.startsWith('http://10.') || 
+      origin.startsWith('http://172.') ||
+      origin.includes('localhost:');
+
+    if (isLocalNetwork) return callback(null, true);
+
+    // Otherwise, deny
+    console.warn(`[CORS] Blocked request from: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));

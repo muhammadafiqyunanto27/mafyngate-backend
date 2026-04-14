@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const socketService = require('../../sockets/socketService');
 const { deleteFile } = require('../../utils/fileHelper');
+const { getAbsoluteUrl } = require('../../utils/urlHelper');
+const sessionService = require('../session/session.service');
 
 class UserController {
   async submitSupport(req, res, next) {
@@ -41,6 +43,7 @@ class UserController {
         message: 'User fetched successfully', 
         data: { 
           ...safeUser, 
+          avatar: getAbsoluteUrl(safeUser.avatar),
           hasChatLock: !!chatLockPassword 
         } 
       });
@@ -105,8 +108,11 @@ class UserController {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await userRepository.updateById(userId, { password: hashedPassword });
 
+      // Security: Invalidate all other sessions on password change
+      await sessionService.deleteAllSessionsForUser(userId);
+
       // Log activity
-      await logActivity(userId, 'PASSWORD_CHANGED', 'Successfully changed account password');
+      await logActivity(userId, 'PASSWORD_CHANGED', 'Successfully changed account password and logged out other devices');
 
       res.status(200).json({ success: true, message: 'Password updated successfully' });
     } catch (error) {
@@ -117,6 +123,9 @@ class UserController {
   async deleteMe(req, res, next) {
     try {
       const userId = req.user.id;
+      
+      // Cleanup all sessions before deleting user
+      await sessionService.deleteAllSessionsForUser(userId);
       
       // Permanently delete user
       await userRepository.deleteById(userId);
@@ -161,6 +170,7 @@ class UserController {
       await logActivity(userId, 'PROFILE_UPDATED', 'Updated profile picture');
 
       const { password, ...safeUser } = updatedUser;
+      safeUser.avatar = getAbsoluteUrl(safeUser.avatar);
       console.log(`[AvatarUpload] Success for user ${userId}`);
       res.status(200).json({ success: true, message: 'Avatar updated successfully', data: safeUser });
     } catch (error) {
@@ -198,7 +208,7 @@ class UserController {
         .map(u => ({
           id: u.id,
           name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
-          avatar: u.avatar,
+          avatar: getAbsoluteUrl(u.avatar),
           bio: u.bio,
           isPrivate: u.isPrivate
         }));
@@ -273,7 +283,7 @@ class UserController {
         return {
           id: u.id,
           name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
-          avatar: u.avatar,
+          avatar: getAbsoluteUrl(u.avatar),
           isFollowing: !!myFollow,
           followStatus: myFollow?.status || 'NONE',
           followsMe: !!theirFollow,
@@ -407,6 +417,7 @@ class UserController {
       const mappedConnections = filtered.map(u => ({
         ...u,
         email: undefined, // Hide email for privacy
+        avatar: getAbsoluteUrl(u.avatar),
         name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown')
       }));
 
@@ -850,7 +861,7 @@ class UserController {
       const safeProfile = {
         id: user.id,
         name: user.name || user.email.split('@')[0],
-        avatar: user.avatar,
+        avatar: getAbsoluteUrl(user.avatar),
         bio: shouldHide ? null : user.bio,
         isPrivate: user.isPrivate,
         isFollowing,

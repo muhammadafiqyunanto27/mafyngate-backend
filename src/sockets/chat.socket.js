@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 const prisma = require('../config/db');
 const PushController = require('../modules/push/push.controller');
+const { getAbsoluteUrl } = require('../utils/urlHelper');
 
 const users = new Map(); // userId -> Set of socketIds
 const userRooms = new Map(); // socketId -> targetUserId (who they are chatting with)
@@ -122,6 +123,7 @@ const chatSocket = (io) => {
           ...message,
           sender: {
             ...message.sender,
+            avatar: getAbsoluteUrl(message.sender.avatar),
             email: undefined
           }
         };
@@ -147,7 +149,7 @@ const chatSocket = (io) => {
           PushController.sendToUser(receiverIdStr, {
             title: `Message from ${senderName}`,
             body: content.substring(0, 100),
-            icon: message.sender.avatar ? `${process.env.BACKEND_URL || ''}${message.sender.avatar}` : '/logo.png',
+            icon: message.sender.avatar ? getAbsoluteUrl(message.sender.avatar) : '/logo.png',
             url: `/messages?userId=${userId}`,
             type: 'CHAT'
           });
@@ -171,13 +173,14 @@ const chatSocket = (io) => {
 
     socket.on('call_user', (data) => {
       const { userToCall, signalData, from, name, avatar, type } = data;
-      io.to(userToCall.toString()).emit('incoming_call', { signal: signalData, from, name, avatar, type });
+      const absoluteAvatar = getAbsoluteUrl(avatar);
+      io.to(userToCall.toString()).emit('incoming_call', { signal: signalData, from, name, avatar: absoluteAvatar, type });
       
       // PUSH NOTIFICATION for Calling
       PushController.sendToUser(userToCall, {
         title: `Incoming ${type} Call`,
         body: `${name || 'Someone'} is calling you...`,
-        icon: avatar ? `${process.env.BACKEND_URL || ''}${avatar}` : '/logo.png',
+        icon: absoluteAvatar || '/logo.png',
         url: '/messages',
         type: 'CALL'
       });
