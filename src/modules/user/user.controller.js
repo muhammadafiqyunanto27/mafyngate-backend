@@ -3,6 +3,7 @@ const { logActivity } = require('../../utils/activityLogger');
 const path = require('path');
 const fs = require('fs');
 const socketService = require('../../sockets/socketService');
+const { deleteFile } = require('../../utils/fileHelper');
 
 class UserController {
   async submitSupport(req, res, next) {
@@ -130,23 +131,18 @@ class UserController {
     try {
       const userId = req.user.id;
       if (!req.file) {
+        console.error('[AvatarUpload] No file provided in request. Check field name (should be "avatar").');
         return res.status(400).json({ success: false, message: 'No file uploaded' });
       }
 
+      console.log(`[AvatarUpload] Received file: ${req.file.originalname}, Size: ${req.file.size}, Path: ${req.file.path}`);
       const avatarPath = req.file.path;
       
       const user = await userRepository.findById(userId);
       
-      // Delete old avatar if it exists and is not the default
-      if (user.avatar && user.avatar.startsWith('/uploads/')) {
-        const oldFile = path.join(__dirname, '../../../', user.avatar);
-        try {
-          if (fs.existsSync(oldFile)) {
-            fs.unlinkSync(oldFile);
-          }
-        } catch (unlinkErr) {
-          console.error('Failed to delete old avatar:', unlinkErr.message);
-        }
+      // Delete old avatar if it exists (handles both Local and Cloudinary)
+      if (user.avatar) {
+        await deleteFile(user.avatar);
       }
 
       const updatedUser = await userRepository.updateById(userId, { avatar: avatarPath });
@@ -165,15 +161,8 @@ class UserController {
       const userId = req.user.id;
       const user = await userRepository.findById(userId);
       
-      if (user.avatar && user.avatar.startsWith('/uploads/')) {
-        const oldFile = path.join(__dirname, '../../../', user.avatar);
-        try {
-          if (fs.existsSync(oldFile)) {
-            fs.unlinkSync(oldFile);
-          }
-        } catch (unlinkErr) {
-          console.error('Failed to delete avatar:', unlinkErr.message);
-        }
+      if (user.avatar) {
+        await deleteFile(user.avatar);
       }
 
       const updatedUser = await userRepository.updateById(userId, { avatar: null });
@@ -193,9 +182,12 @@ class UserController {
       
       const filteredUsers = users
         .filter(user => user.id !== userId)
-        .map(({ password, email, ...u }) => ({
-          ...u,
-          name: u.name || email.split('@')[0]
+        .map(u => ({
+          id: u.id,
+          name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
+          avatar: u.avatar,
+          bio: u.bio,
+          isPrivate: u.isPrivate
         }));
 
       res.status(200).json({ success: true, data: filteredUsers });
@@ -209,7 +201,28 @@ class UserController {
       const currentUserId = req.user.id;
       const otherUserId = req.params.userId;
       const messages = await userRepository.findMessagesByUsers(currentUserId, otherUserId);
-      res.status(200).json({ success: true, data: messages });
+      
+      const safeMessages = messages.map(m => {
+        const sanitizedSender = {
+          ...m.sender,
+          name: m.sender.name || (m.sender.email ? m.sender.email.split('@')[0] : 'Unknown'),
+          email: undefined
+        };
+        
+        return {
+          ...m,
+          sender: sanitizedSender,
+          parent: m.parent ? {
+            ...m.parent,
+            sender: {
+              ...m.parent.sender,
+              name: m.parent.sender.name || 'User' // Parent sender already has limited fields
+            }
+          } : null
+        };
+      });
+
+      res.status(200).json({ success: true, data: safeMessages });
     } catch (error) {
       next(error);
     }
@@ -529,17 +542,10 @@ class UserController {
         where: { id: { in: messageIds }, senderId: userId }
       });
 
-      // 2. Physical File Deletion
+      // 2. Physical File Deletion (Cloudinary or Local)
       for (const msg of messagesToDelete) {
         if (msg.fileUrl) {
-          const filePath = path.join(__dirname, '../../../', msg.fileUrl);
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-            } catch (err) {
-              console.error(`Failed to delete file: ${filePath}`, err);
-            }
-          }
+          await deleteFile(msg.fileUrl);
         }
       }
 
@@ -640,10 +646,7 @@ class UserController {
         // 2. Delete physical files
         for (const msg of messages) {
           if (msg.fileUrl) {
-            const filePath = path.join(__dirname, '../../../', msg.fileUrl);
-            if (fs.existsSync(filePath)) {
-              try { fs.unlinkSync(filePath); } catch (e) {}
-            }
+            await deleteFile(msg.fileUrl);
           }
         }
 

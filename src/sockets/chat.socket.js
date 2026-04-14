@@ -115,11 +115,21 @@ const chatSocket = (io) => {
           }
         });
 
-        io.to(receiverIdStr).emit('receive_message', message);
+        const senderName = message.sender.name || message.sender.email.split('@')[0];
+        
+        // Strip email before sending to clients for privacy
+        const sanitizedMessage = {
+          ...message,
+          sender: {
+            ...message.sender,
+            email: undefined
+          }
+        };
+
+        io.to(receiverIdStr).emit('receive_message', sanitizedMessage);
         
         // ONLY create notification if they are NOT in the room
         if (!isReceiverInRoom) {
-          const senderName = message.sender.name || message.sender.email.split('@')[0];
           const notification = await prisma.notification.create({
             data: {
               userId: receiverIdStr,
@@ -143,7 +153,7 @@ const chatSocket = (io) => {
           });
         }
         
-        socket.emit('message_sent', message);
+        socket.emit('message_sent', sanitizedMessage);
       } catch (err) {
         console.error('[Socket] Chat error:', err);
       }
