@@ -1,7 +1,7 @@
+const config = require('./src/config/env');
 const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
-const config = require('./src/config/env');
 const chatSocket = require('./src/sockets/chat.socket');
 const socketService = require('./src/sockets/socketService');
 

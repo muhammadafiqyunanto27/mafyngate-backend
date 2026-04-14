@@ -139,19 +139,32 @@ class UserController {
       const avatarPath = req.file.path;
       
       const user = await userRepository.findById(userId);
+      if (!user) {
+        console.error(`[AvatarUpload] User ${userId} not found in database.`);
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
       
       // Delete old avatar if it exists (handles both Local and Cloudinary)
       if (user.avatar) {
-        await deleteFile(user.avatar);
+        try {
+          await deleteFile(user.avatar);
+        } catch (delErr) {
+          console.error(`[AvatarUpload] Cleanup error (non-fatal): ${delErr.message}`);
+        }
       }
 
+      console.log(`[AvatarUpload] Updating database for user ${userId}...`);
       const updatedUser = await userRepository.updateById(userId, { avatar: avatarPath });
       
+      if (!updatedUser) throw new Error('Failed to update user record');
+
       await logActivity(userId, 'PROFILE_UPDATED', 'Updated profile picture');
 
       const { password, ...safeUser } = updatedUser;
+      console.log(`[AvatarUpload] Success for user ${userId}`);
       res.status(200).json({ success: true, message: 'Avatar updated successfully', data: safeUser });
     } catch (error) {
+      console.error(`[AvatarUpload] CRITICAL ERROR:`, error);
       next(error);
     }
   }
