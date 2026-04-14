@@ -76,8 +76,9 @@ class PushController {
 
         return webpush.sendNotification(pushConfig, JSON.stringify(payload))
           .catch(async (err) => {
-            if (err.statusCode === 404 || err.statusCode === 410) {
-              console.log(`[Push] Subscription expired or removed: ${sub.endpoint}`);
+            // 404/410: Expired/Gone, 401/403: Invalid/Mismatched credentials
+            if ([401, 403, 404, 410].includes(err.statusCode)) {
+              console.log(`[Push] Removing invalid subscription (${err.statusCode}): ${sub.endpoint}`);
               await prisma.pushSubscription.delete({ where: { id: sub.id } });
             } else {
               console.error(`[Push] Error sending to ${sub.endpoint}:`, err);

@@ -1,5 +1,28 @@
 const multer = require('multer');
-const { chatStorage } = require('../config/cloudinary');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadBase = process.env.UPLOAD_PATH || 'uploads';
+    cb(null, path.join(uploadBase, 'chat'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    let ext = path.extname(file.originalname);
+    
+    // Fallback for blobs without extension (usually Voice Notes)
+    if (!ext || ext === '.') {
+      if (file.mimetype.startsWith('audio/')) {
+        ext = '.' + file.mimetype.split('/')[1].split(';')[0]; // handle audio/webm;codecs=opus -> .webm
+      } else if (file.mimetype === 'image/jpeg') ext = '.jpg';
+      else if (file.mimetype === 'image/png') ext = '.png';
+      else if (file.mimetype === 'application/pdf') ext = '.pdf';
+    }
+    
+    cb(null, 'chat-' + uniqueSuffix + ext);
+  }
+});
 
 const fileFilter = (req, file, cb) => {
   // Allow images, videos, audio, and common documents
@@ -15,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const chatUpload = multer({
-  storage: chatStorage,
+  storage: storage,
   limits: {
     fileSize: 20 * 1024 * 1024 // 20MB limit
   },

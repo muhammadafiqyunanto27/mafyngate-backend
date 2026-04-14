@@ -120,7 +120,7 @@ class UserRepository {
 
   async findPendingRequests(userId) {
     const prisma = require('../../config/db');
-    return await prisma.follow.findMany({
+    const requests = await prisma.follow.findMany({
       where: {
         followingId: userId,
         status: 'PENDING'
@@ -131,6 +131,9 @@ class UserRepository {
         }
       }
     });
+
+    // Filter out requests where the follower might have been deleted but the record remains
+    return requests.filter(r => r.follower);
   }
 
   async unfollow(followerId, followingId) {
@@ -210,7 +213,7 @@ class UserRepository {
     // Add from follows
     follows.forEach(conn => {
       const otherUser = conn.followerId === userId ? conn.following : conn.follower;
-      if (otherUser.id !== userId) {
+      if (otherUser && otherUser.id !== userId) {
         userMap.set(otherUser.id, otherUser);
       }
     });
@@ -224,38 +227,64 @@ class UserRepository {
     });
 
     const users = Array.from(userMap.values()).map(({ password, ...u }) => u);
+    const userIds = users.map(u => u.id);
 
-    // Enrich with last message info and pinned status
+    // 3. Bulk fetch data (unread counts and pinned status) to avoid N+1
+    const [unreadCounts, participants] = await Promise.all([
+      prisma.message.groupBy({
+        by: ['senderId'],
+        where: {
+          receiverId: userId,
+          senderId: { in: userIds },
+          isRead: false
+        },
+        _count: { _all: true }
+      }),
+      prisma.conversationParticipant.findMany({
+        where: {
+          userId: userId,
+          conversation: { participants: { some: { userId: { in: userIds } } } }
+        },
+        select: {
+          isPinned: true,
+          conversation: {
+            select: {
+              participants: {
+                where: { userId: { in: userIds } },
+                select: { userId: true }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    const unreadMap = new Map(unreadCounts.map(item => [item.senderId, item._count._all]));
+    const pinnedMap = new Map();
+    participants.forEach(p => {
+       const otherParticipant = p.conversation.participants.find(part => part.userId !== userId);
+       if (otherParticipant) {
+         pinnedMap.set(otherParticipant.userId, p.isPinned);
+       }
+    });
+
+    // 4. Enrich users with last message (1 query per user is okay vs 3)
     const enrichedUsers = await Promise.all(users.map(async (u) => {
-      const [lastMsg, unreadCount, participant] = await Promise.all([
-        prisma.message.findFirst({
-          where: {
-            OR: [
-              { senderId: userId, receiverId: u.id },
-              { senderId: u.id, receiverId: userId }
-            ]
-          },
-          orderBy: { createdAt: 'desc' }
-        }),
-        prisma.message.count({
-          where: {
-            receiverId: userId,
-            senderId: u.id,
-            isRead: false
-          }
-        }),
-        prisma.conversationParticipant.findFirst({
-          where: {
-            userId: userId,
-            conversation: { participants: { some: { userId: u.id } } }
-          }
-        })
-      ]);
+      const lastMsg = await prisma.message.findFirst({
+        where: {
+          OR: [
+            { senderId: userId, receiverId: u.id },
+            { senderId: u.id, receiverId: userId }
+          ]
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { content: true, createdAt: true }
+      });
 
       return {
         ...u,
-        unreadCount,
-        isPinned: participant?.isPinned || false,
+        unreadCount: unreadMap.get(u.id) || 0,
+        isPinned: pinnedMap.get(u.id) || false,
         lastMessage: lastMsg ? {
           content: lastMsg.content,
           createdAt: lastMsg.createdAt
@@ -430,7 +459,9 @@ class UserRepository {
       }
     });
 
-    return unreadMessages.map(m => m.sender);
+    return unreadMessages
+      .map(m => m.sender)
+      .filter(sender => sender !== null);
   }
 
   async setChatLockPassword(userId, hashedPassword) {

@@ -1,5 +1,18 @@
 const multer = require('multer');
-const { avatarStorage } = require('../config/cloudinary');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadBase = process.env.UPLOAD_PATH || 'uploads';
+    cb(null, path.join(uploadBase, 'avatars'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'avatar-' + uniqueSuffix + ext);
+  }
+});
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|webp/;
@@ -13,7 +26,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: avatarStorage,
+  storage: storage,
   limits: {
     fileSize: 2 * 1024 * 1024 // 2MB limit
   },

@@ -83,7 +83,11 @@ class UserController {
     try {
       const userId = req.user.id;
       const data = await userRepository.findActivities(userId);
-      res.status(200).json({ success: true, message: 'Activities fetched successfully', data: data.activities });
+      res.status(200).json({ 
+        success: true, 
+        message: 'Activities fetched successfully', 
+        data: (data && data.activities) ? data.activities : [] 
+      });
     } catch (error) {
       next(error);
     }
@@ -145,7 +149,7 @@ class UserController {
       }
 
       console.log(`[AvatarUpload] Received file: ${req.file.originalname}, Size: ${req.file.size}, Path: ${req.file.path}`);
-      const avatarPath = req.file.path;
+      const avatarPath = req.file.path.replace(/\\/g, '/');
       
       const user = await userRepository.findById(userId);
       if (!user) {
@@ -235,11 +239,13 @@ class UserController {
         return {
           ...m,
           sender: sanitizedSender,
+          fileUrl: m.fileUrl ? getAbsoluteUrl(m.fileUrl) : null,
           parent: m.parent ? {
             ...m.parent,
+            fileUrl: m.parent.fileUrl ? getAbsoluteUrl(m.parent.fileUrl) : null,
             sender: {
               ...m.parent.sender,
-              name: m.parent.sender.name || 'User' // Parent sender already has limited fields
+              name: m.parent.sender.name || 'User'
             }
           } : null
         };
@@ -509,7 +515,7 @@ class UserController {
       res.status(200).json({ 
         success: true, 
         data: { 
-          url: req.file.path,
+          url: getAbsoluteUrl(req.file.path),
           name: req.file.originalname,
           size: req.file.size,
           type: req.file.mimetype 

@@ -6,11 +6,20 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Ensure uploads directory and subdirectories exist
+const uploadBase = process.env.UPLOAD_PATH || 'uploads';
+const uploadDirs = [
+  path.resolve(uploadBase),
+  path.resolve(uploadBase, 'avatars'),
+  path.resolve(uploadBase, 'chat')
+];
+
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`[Storage] Created directory: ${dir}`);
+  }
+});
 
 const app = express();
 
@@ -52,7 +61,7 @@ app.use(cookieParser());
 app.use(apiLimiter);
 
 // Serve uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.resolve(uploadBase)));
 
 // Routes
 const authRoutes = require('./src/modules/auth/auth.route');

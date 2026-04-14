@@ -1,0 +1,111 @@
+
+[2026-04-14T13:16:40.196Z] GET /user/notifications/unread-count
+Error: 
+Invalid `prisma.notification.count()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:405:38
+
+  402 
+  403 async countUnreadNotifications(userId) {
+  404   const prisma = require('../../config/db');
+→ 405   return await prisma.notification.count(
+Too many database connections opened: FATAL: sorry, too many clients already
+Prisma Accelerate has built-in connection pooling to prevent such errors: https://pris.ly/client/error-accelerate
+Stack: PrismaClientKnownRequestError: 
+Invalid `prisma.notification.count()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:405:38
+
+  402 
+  403 async countUnreadNotifications(userId) {
+  404   const prisma = require('../../config/db');
+→ 405   return await prisma.notification.count(
+Too many database connections opened: FATAL: sorry, too many clients already
+Prisma Accelerate has built-in connection pooling to prevent such errors: https://pris.ly/client/error-accelerate
+    at ei.handleRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async UserRepository.countUnreadNotifications (D:\mafynGate\backend\src\modules\user\user.repository.js:405:12)
+    at async getUnreadNotificationCount (D:\mafynGate\backend\src\modules\user\user.controller.js:540:21)
+--------------------------------------------------
+
+[2026-04-14T13:16:42.968Z] GET /user/connections
+Error: 
+Invalid `prisma.message.count()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:243:24
+
+  240   },
+  241   orderBy: { createdAt: 'desc' }
+  242 }),
+→ 243 prisma.message.count(
+Too many database connections opened: FATAL: sorry, too many clients already
+Prisma Accelerate has built-in connection pooling to prevent such errors: https://pris.ly/client/error-accelerate
+Stack: PrismaClientKnownRequestError: 
+Invalid `prisma.message.count()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:243:24
+
+  240   },
+  241   orderBy: { createdAt: 'desc' }
+  242 }),
+→ 243 prisma.message.count(
+Too many database connections opened: FATAL: sorry, too many clients already
+Prisma Accelerate has built-in connection pooling to prevent such errors: https://pris.ly/client/error-accelerate
+    at ei.handleRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async Promise.all (index 1)
+    at async D:\mafynGate\backend\src\modules\user\user.repository.js:233:51
+    at async Promise.all (index 2)
+    at async UserRepository.findConnections (D:\mafynGate\backend\src\modules\user\user.repository.js:232:27)
+    at async getConnections (D:\mafynGate\backend\src\modules\user\user.controller.js:413:27)
+--------------------------------------------------
+
+[2026-04-14T13:27:15.453Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T13:27:15.750Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T13:27:18.119Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T13:27:18.417Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T13:44:09.560Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T13:44:10.990Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T14:19:47.723Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T14:19:47.734Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T14:19:53.544Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-14T14:19:53.898Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
