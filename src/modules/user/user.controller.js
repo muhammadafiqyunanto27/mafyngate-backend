@@ -515,7 +515,8 @@ class UserController {
       res.status(200).json({ 
         success: true, 
         data: { 
-          url: getAbsoluteUrl(req.file.path),
+          url: getAbsoluteUrl(req.file.path.replace(/\\/g, '/')),
+          path: req.file.path.replace(/\\/g, '/'),
           name: req.file.originalname,
           size: req.file.size,
           type: req.file.mimetype 

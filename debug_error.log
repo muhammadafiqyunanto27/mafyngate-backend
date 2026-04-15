@@ -109,3 +109,13 @@ Stack: undefined
 Error: Invalid or expired refresh token session
 Stack: undefined
 --------------------------------------------------
+
+[2026-04-15T06:07:08.977Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-15T06:07:09.229Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------

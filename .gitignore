@@ -4,3 +4,4 @@ dist/
 coverage/
 .DS_Store
 bug_reports.log
+debug_error.log

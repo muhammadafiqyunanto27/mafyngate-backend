@@ -121,12 +121,18 @@ const chatSocket = (io) => {
         // Strip email before sending to clients for privacy
         const sanitizedMessage = {
           ...message,
+          fileUrl: message.fileUrl ? getAbsoluteUrl(message.fileUrl) : null,
+          parent: message.parent ? {
+            ...message.parent,
+            fileUrl: message.parent.fileUrl ? getAbsoluteUrl(message.parent.fileUrl) : null
+          } : null,
           sender: {
             ...message.sender,
             avatar: getAbsoluteUrl(message.sender.avatar),
             email: undefined
           }
         };
+
 
         io.to(receiverIdStr).emit('receive_message', sanitizedMessage);
         
