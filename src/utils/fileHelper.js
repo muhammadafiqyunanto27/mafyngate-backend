@@ -1,30 +1,51 @@
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('../config/cloudinary');
 
 /**
- * Enhanced file deletion utility that handles Local storage.
- * @param {string} fileUrlOrPath - The full URL (ignored if external) or relative path (Local)
+ * Enhanced file deletion utility that handles both Local and Cloudinary storage.
+ * @param {string} fileUrlOrPath - The full URL (Cloudinary) or relative path (Local)
  */
 const deleteFile = async (fileUrlOrPath) => {
   if (!fileUrlOrPath) return;
 
   try {
-    // We only handle local deletion now. 
-    // If the path starts with http, it might be an old Cloudinary URL (ignore)
-    if (fileUrlOrPath.startsWith('http')) {
-      console.log(`[FileHelper] Skipping external/legacy URL: ${fileUrlOrPath}`);
+    // 1. Handle Cloudinary Deletion
+    if (fileUrlOrPath.startsWith('http') && fileUrlOrPath.includes('cloudinary.com')) {
+      console.log(`[FileHelper] Attempting to delete from Cloudinary: ${fileUrlOrPath}`);
+      
+      // Extract public_id from URL
+      // URL format: https://res.cloudinary.com/cloudname/image/upload/v12345/folder/public_id.jpg
+      const parts = fileUrlOrPath.split('/');
+      const lastPart = parts[parts.length - 1];
+      const filename = lastPart.split('.')[0];
+      
+      // The public_id includes the folder path if present
+      const uploadIndex = parts.indexOf('upload');
+      if (uploadIndex !== -1) {
+        // public_id is everything after 'v12345/' or 'upload/' until the extension
+        // e.g., 'mafyngate/avatars/file-123'
+        const publicIdWithExt = parts.slice(uploadIndex + 2).join('/');
+        const publicId = publicIdWithExt.split('.')[0];
+        
+        console.log(`[FileHelper] Extracted Public ID: ${publicId}`);
+        
+        await cloudinary.uploader.destroy(publicId);
+        console.log(`[FileHelper] Succesfully deleted from Cloudinary.`);
+      }
       return;
     }
 
-    // Handle Local deletion
-    // The path in DB is relative to the project root (e.g., 'uploads/avatars/...')
+    // 2. Handle Local deletion
+    // If it starts with http but isn't Cloudinary, ignore
+    if (fileUrlOrPath.startsWith('http')) {
+      return;
+    }
+
     const absolutePath = path.resolve(fileUrlOrPath);
-    
     if (fs.existsSync(absolutePath)) {
       fs.unlinkSync(absolutePath);
       console.log(`[FileHelper] Deleted from local storage: ${fileUrlOrPath}`);
-    } else {
-      console.warn(`[FileHelper] File not found: ${absolutePath}`);
     }
   } catch (err) {
     console.error(`[FileHelper] Error deleting file ${fileUrlOrPath}:`, err.message);
