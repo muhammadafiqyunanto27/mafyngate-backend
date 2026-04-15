@@ -9,8 +9,13 @@ const getAbsoluteUrl = (pathOrUrl) => {
   // If already absolute (Cloudinary / External), return as is
   if (pathOrUrl.startsWith('http')) return pathOrUrl;
   
-  // Prepend backend URL for local assets
-  const baseUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+  let baseUrl = 'http://localhost:5000';
+  
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    baseUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  } else if (process.env.BACKEND_URL) {
+    baseUrl = process.env.BACKEND_URL;
+  }
   
   // Ensure we don't double slash
   const cleanPath = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
