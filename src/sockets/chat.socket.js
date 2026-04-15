@@ -95,7 +95,7 @@ const chatSocket = (io) => {
 
         const message = await prisma.message.create({
           data: { 
-            content: content || fileName || 'File', 
+            content: content || (type === 'IMAGE' ? '[Photo]' : type === 'VIDEO' ? '[Video]' : type === 'VOICE' ? '[Voice Note]' : fileName || 'File'), 
             senderId: userId, 
             receiverId: receiverIdStr, 
             conversationId: conversation.id,
