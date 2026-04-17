@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 const prisma = require('../config/db');
 const PushController = require('../modules/push/push.controller');
-const { getAbsoluteUrl } = require('../utils/urlHelper');
+const { getAbsoluteUrl, getFrontendUrl } = require('../utils/urlHelper');
 
 const users = new Map(); // userId -> Set of socketIds
 const userRooms = new Map(); // socketId -> targetUserId (who they are chatting with)
@@ -155,8 +155,8 @@ const chatSocket = (io) => {
           PushController.sendToUser(receiverIdStr, {
             title: `Message from ${senderName}`,
             body: content.substring(0, 100),
-            icon: message.sender.avatar ? getAbsoluteUrl(message.sender.avatar) : '/logo.png',
-            url: `/messages?userId=${userId}`,
+            icon: message.sender.avatar ? getAbsoluteUrl(message.sender.avatar) : getFrontendUrl('/logo.png'),
+            url: getFrontendUrl(`/messages?userId=${userId}`),
             type: 'CHAT'
           });
         }
@@ -186,8 +186,8 @@ const chatSocket = (io) => {
       PushController.sendToUser(userToCall, {
         title: `Incoming ${type} Call`,
         body: `${name || 'Someone'} is calling you...`,
-        icon: absoluteAvatar || '/logo.png',
-        url: '/messages',
+        icon: absoluteAvatar || getFrontendUrl('/logo.png'),
+        url: getFrontendUrl('/messages'),
         type: 'CALL'
       });
     });

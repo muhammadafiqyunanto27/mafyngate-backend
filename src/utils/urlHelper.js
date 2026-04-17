@@ -16,11 +16,10 @@ const getAbsoluteUrl = (pathOrUrl) => {
   } else if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
     baseUrl = process.env.BACKEND_URL;
   }
-  // If local dev, baseUrl remains http://localhost:5000 regardless of BACKEND_URL in .env
-  
-  // Ensure we don't double slash
-  const cleanPath = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
-  return `${baseUrl}${cleanPath}`;
+const getFrontendUrl = (path) => {
+  const base = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
+  return `${base}${cleanPath}`;
 };
 
-module.exports = { getAbsoluteUrl };
+module.exports = { getAbsoluteUrl, getFrontendUrl };
