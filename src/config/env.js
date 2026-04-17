@@ -1,4 +1,10 @@
-require('dotenv').config();
+// Diagnostic Log for Push Notifications
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  console.log('✅ [Push] VAPID Keys Detected. Background Notifications Ready.');
+} else {
+  console.error('❌ [Push] VAPID Keys Missing! Background Notifications will NOT work.');
+  console.log('   Please add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to your env variables.');
+}
 
 module.exports = {
   port: process.env.PORT || 5000,

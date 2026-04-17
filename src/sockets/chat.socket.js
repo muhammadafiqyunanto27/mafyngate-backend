@@ -7,6 +7,20 @@ const { getAbsoluteUrl, getFrontendUrl } = require('../utils/urlHelper');
 const users = new Map(); // userId -> Set of socketIds
 const userRooms = new Map(); // socketId -> targetUserId (who they are chatting with)
 
+// Store active call attempts that can be "picked up" if a user comes online
+// Key: targetUserId, Value: { signalData, from, name, avatar, type, timestamp }
+const pendingCalls = new Map();
+
+// Cleanup stale calls every 30 seconds
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, callData] of pendingCalls.entries()) {
+    if (now - callData.timestamp > 60000) { // 60 seconds TTL
+      pendingCalls.delete(userId);
+    }
+  }
+}, 30000);
+
 const chatSocket = (io) => {
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -27,6 +41,21 @@ const chatSocket = (io) => {
     if (!users.has(userId)) users.set(userId, new Set());
     users.get(userId).add(socket.id);
     socket.join(userId);
+
+    // --- PICK UP PENDING CALLS ---
+    // If someone was calling this user while they were offline, re-emit the signal now
+    const pendingCall = pendingCalls.get(userId);
+    if (pendingCall && (Date.now() - pendingCall.timestamp < 60000)) {
+       console.log(`[Socket] Re-emitting pending call for user ${userId} from ${pendingCall.name}`);
+       socket.emit('incoming_call', {
+         signal: pendingCall.signalData,
+         from: pendingCall.from,
+         name: pendingCall.name,
+         avatar: pendingCall.avatar,
+         type: pendingCall.type,
+         isRecovered: true
+       });
+    }
 
     // Broadcast that this user is now online to anyone interested
     io.emit('user_status', { userId, status: 'online' });
@@ -180,7 +209,19 @@ const chatSocket = (io) => {
     socket.on('call_user', (data) => {
       const { userToCall, signalData, from, name, avatar, type } = data;
       const absoluteAvatar = getAbsoluteUrl(avatar);
-      io.to(userToCall.toString()).emit('incoming_call', { signal: signalData, from, name, avatar: absoluteAvatar, type });
+      const receiverIdStr = userToCall.toString();
+
+      // Store in pending calls so it can be recovered if the user is reconnecting
+      pendingCalls.set(receiverIdStr, {
+        signalData,
+        from,
+        name,
+        avatar: absoluteAvatar,
+        type,
+        timestamp: Date.now()
+      });
+
+      io.to(receiverIdStr).emit('incoming_call', { signal: signalData, from, name, avatar: absoluteAvatar, type });
       
       // PUSH NOTIFICATION for Calling
       PushController.sendToUser(userToCall, {
@@ -194,16 +235,23 @@ const chatSocket = (io) => {
 
     socket.on('answer_call', (data) => {
       const { signal, to } = data;
-      io.to(to.toString()).emit('call_accepted', signal);
+      const receiverIdStr = to.toString();
+      pendingCalls.delete(userId); // Caller answered, cleanup
+      pendingCalls.delete(receiverIdStr); // Target answered
+      io.to(receiverIdStr).emit('call_accepted', signal);
     });
 
     socket.on('reject_call', (data) => {
       const { to } = data;
+      pendingCalls.delete(to.toString());
+      pendingCalls.delete(userId);
       io.to(to.toString()).emit('call_rejected');
     });
 
     socket.on('end_call', (data) => {
       const { to } = data;
+      pendingCalls.delete(to.toString());
+      pendingCalls.delete(userId);
       io.to(to.toString()).emit('call_ended');
     });
 
