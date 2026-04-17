@@ -6,20 +6,24 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory and subdirectories exist
-const uploadBase = process.env.UPLOAD_PATH || 'uploads';
-const uploadDirs = [
-  path.resolve(uploadBase),
-  path.resolve(uploadBase, 'avatars'),
-  path.resolve(uploadBase, 'chat')
-];
+// Only create local upload directories if NOT using Cloudinary
+if (process.env.USE_CLOUDINARY !== 'true') {
+  const uploadBase = process.env.UPLOAD_PATH || 'uploads';
+  const uploadDirs = [
+    path.resolve(uploadBase),
+    path.resolve(uploadBase, 'avatars'),
+    path.resolve(uploadBase, 'chat')
+  ];
 
-uploadDirs.forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    console.log(`[Storage] Created directory: ${dir}`);
-  }
-});
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`[Storage] Created local directory: ${dir}`);
+    }
+  });
+} else {
+  console.log('[Storage] Cloudinary is active. Local directories skipped.');
+}
 
 const app = express();
 
