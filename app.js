@@ -6,9 +6,10 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 
+const uploadBase = process.env.UPLOAD_PATH || 'uploads';
+
 // Only create local upload directories if NOT using Cloudinary
 if (process.env.USE_CLOUDINARY !== 'true') {
-  const uploadBase = process.env.UPLOAD_PATH || 'uploads';
   const uploadDirs = [
     path.resolve(uploadBase),
     path.resolve(uploadBase, 'avatars'),
