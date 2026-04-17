@@ -16,6 +16,11 @@ const getAbsoluteUrl = (pathOrUrl) => {
   } else if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
     baseUrl = process.env.BACKEND_URL;
   }
+  
+  const cleanPath = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return `${baseUrl}${cleanPath}`;
+};
+
 const getFrontendUrl = (path) => {
   const base = process.env.FRONTEND_URL || 'http://localhost:3000';
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
