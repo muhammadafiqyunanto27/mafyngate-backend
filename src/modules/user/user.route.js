@@ -25,6 +25,7 @@ router.get('/chat/messages/:userId', authMiddleware, userController.getMessages)
 router.patch('/chat/read/:userId', authMiddleware, userController.markMessagesAsRead);
 router.get('/chat/unread-count', authMiddleware, userController.getUnreadCount);
 router.get('/chat/unread-conversations', authMiddleware, userController.getUnreadConversations);
+router.get('/chat/gallery/:userId', authMiddleware, userController.getChatGallery);
 router.get('/notifications/unread-count', authMiddleware, userController.getUnreadNotificationCount);
 router.delete('/chat/messages', authMiddleware, userController.deleteChatMessages);
 router.patch('/chat/message', authMiddleware, userController.editChatMessage);

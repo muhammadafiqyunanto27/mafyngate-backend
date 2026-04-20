@@ -829,6 +829,28 @@ class UserController {
     }
   }
 
+  async getChatGallery(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const targetId = req.params.userId;
+      const gallery = await userRepository.findChatGallery(userId, targetId);
+      
+      // Sanitize URLs
+      gallery.media = gallery.media.map(m => ({
+        ...m,
+        fileUrl: getAbsoluteUrl(m.fileUrl)
+      }));
+      gallery.docs = gallery.docs.map(d => ({
+        ...d,
+        fileUrl: getAbsoluteUrl(d.fileUrl)
+      }));
+
+      res.status(200).json({ success: true, data: gallery });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async updateContactAlias(req, res, next) {
     try {
       const followerId = req.user.id;

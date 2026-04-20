@@ -74,14 +74,9 @@ class UserRepository {
     const prisma = require('../../config/db');
     return await UserModel.findMany({
       where: {
-        AND: [
-          {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { email: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-          { id: { not: currentUserId } }
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
         ]
       },
       select: {
@@ -541,6 +536,36 @@ class UserRepository {
       where: { id: userId },
       data: { chatLockPassword: null }
     });
+  }
+
+  async findChatGallery(userId, targetId) {
+    const prisma = require('../../config/db');
+    // Find conversation first
+    const conversation = await prisma.conversation.findFirst({
+      where: { participants: { every: { userId: { in: [userId, targetId] } } } }
+    });
+
+    if (!conversation) return { media: [], links: [], docs: [] };
+
+    const messages = await prisma.message.findMany({
+      where: { 
+        conversationId: conversation.id,
+        OR: [
+          { type: { in: ['IMAGE', 'VIDEO', 'FILE'] } },
+          { content: { contains: 'http' } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        sender: { select: { id: true, name: true } }
+      }
+    });
+
+    const media = messages.filter(m => m.type === 'IMAGE' || m.type === 'VIDEO');
+    const docs = messages.filter(m => m.type === 'FILE');
+    const links = messages.filter(m => m.type === 'TEXT' && m.content.includes('http'));
+
+    return { media, links, docs };
   }
 
   async updateFollowAlias(followerId, followingId, alias) {
