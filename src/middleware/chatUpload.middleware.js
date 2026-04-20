@@ -38,6 +38,13 @@ const cloudinaryStorage = new CloudinaryStorage({
 
 const useCloudinary = process.env.USE_CLOUDINARY === 'true';
 
+// Log storage status on init
+if (useCloudinary) {
+  console.log('✅ [Storage:Chat] Cloudinary is ACTIVE (Persistent)');
+} else {
+  console.warn('⚠️ [Storage:Chat] Local Disk is ACTIVE (NOT Persistent on Railway)');
+}
+
 const chatUpload = multer({
   storage: useCloudinary ? cloudinaryStorage : diskStorage,
   limits: {

@@ -53,11 +53,17 @@ const fileFilter = (req, file, cb) => {
 
 const useCloudinary = process.env.USE_CLOUDINARY === 'true';
 
+// Log storage status on init
+if (useCloudinary) {
+  console.log('✅ [Storage] Cloudinary is ACTIVE (Persistent)');
+} else {
+  console.warn('⚠️ [Storage] Local Disk is ACTIVE (NOT Persistent on Railway/Heroku)');
+}
+
 const upload = multer({
   storage: useCloudinary ? cloudinaryStorage : diskStorage,
   limits: {
-    // 10MB limit (Adjust if video files are expected to be larger)
-    fileSize: 10 * 1024 * 1024 
+    fileSize: 20 * 1024 * 1024 // Increased to 20MB for better support
   },
   fileFilter: fileFilter
 });
