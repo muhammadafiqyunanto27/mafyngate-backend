@@ -75,14 +75,25 @@ class PushController {
           },
         };
 
-        return webpush.sendNotification(pushConfig, JSON.stringify(payload))
+        return webpush.sendNotification(pushConfig, JSON.stringify(payload), {
+          TTL: 60 * 60 * 24, // 24 hours
+          urgency: 'high',
+          topic: payload.type || 'general'
+        })
+          .then(result => {
+             console.log(`[Push] Successfully sent to ${sub.endpoint.substring(0, 30)}... Status: ${result.statusCode}`);
+          })
           .catch(async (err) => {
             // 404/410: Expired/Gone, 401/403: Invalid/Mismatched credentials
             if ([401, 403, 404, 410].includes(err.statusCode)) {
-              console.log(`[Push] Removing invalid subscription (${err.statusCode}): ${sub.endpoint}`);
+              console.log(`[Push] Removing invalid subscription (${err.statusCode}): ${sub.endpoint.substring(0, 30)}...`);
               await prisma.pushSubscription.delete({ where: { id: sub.id } });
             } else {
-              console.error(`[Push] Error sending to ${sub.endpoint}:`, err);
+              console.error(`[Push] Detailed Error sending to ${sub.endpoint.substring(0, 30)}...:`, {
+                status: err.statusCode,
+                body: err.body,
+                headers: err.headers
+              });
             }
           });
       });
@@ -90,6 +101,22 @@ class PushController {
       await Promise.all(notifications);
     } catch (err) {
       console.error('[Push] sendToUser error:', err);
+    }
+  }
+
+  async testSubscription(req, res, next) {
+    try {
+      const userId = req.user.id.toString();
+      await PushController.sendToUser(userId, {
+        title: 'MafynGate Connection Test',
+        body: 'Success! Your background notifications are correctly linked to your account.',
+        icon: '/logo.png',
+        url: '/settings',
+        type: 'SYSTEM'
+      });
+      res.status(200).json({ success: true, message: 'Test notification sent' });
+    } catch (error) {
+      next(error);
     }
   }
 }

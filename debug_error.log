@@ -119,3 +119,79 @@ Stack: undefined
 Error: Invalid or expired refresh token session
 Stack: undefined
 --------------------------------------------------
+
+[2026-04-20T02:59:29.684Z] POST /auth/refresh
+Error: Invalid or expired refresh token
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T02:59:29.919Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T02:59:34.168Z] POST /auth/login
+Error: secretOrPrivateKey must have a value
+Stack: Error: secretOrPrivateKey must have a value
+    at module.exports [as sign] (D:\mafynGate\backend\node_modules\jsonwebtoken\sign.js:111:20)
+    at Object.generateTokens (D:\mafynGate\backend\src\utils\jwt.util.js:5:27)
+    at AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:43:28)
+    at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
+--------------------------------------------------
+
+[2026-04-20T02:59:46.932Z] POST /auth/login
+Error: secretOrPrivateKey must have a value
+Stack: Error: secretOrPrivateKey must have a value
+    at module.exports [as sign] (D:\mafynGate\backend\node_modules\jsonwebtoken\sign.js:111:20)
+    at Object.generateTokens (D:\mafynGate\backend\src\utils\jwt.util.js:5:27)
+    at AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:43:28)
+    at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
+--------------------------------------------------
+
+[2026-04-20T02:59:53.612Z] POST /auth/login
+Error: Invalid credentials
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T02:59:59.515Z] POST /auth/login
+Error: secretOrPrivateKey must have a value
+Stack: Error: secretOrPrivateKey must have a value
+    at module.exports [as sign] (D:\mafynGate\backend\node_modules\jsonwebtoken\sign.js:111:20)
+    at Object.generateTokens (D:\mafynGate\backend\src\utils\jwt.util.js:5:27)
+    at AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:43:28)
+    at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
+--------------------------------------------------
+
+[2026-04-20T03:00:06.943Z] POST /auth/login
+Error: Invalid credentials
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T03:00:15.895Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T03:00:16.126Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T03:00:47.874Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T03:00:48.137Z] POST /auth/refresh
+Error: Invalid or expired refresh token session
+Stack: undefined
+--------------------------------------------------
+
+[2026-04-20T03:01:29.219Z] POST /auth/login
+Error: secretOrPrivateKey must have a value
+Stack: Error: secretOrPrivateKey must have a value
+    at module.exports [as sign] (D:\mafynGate\backend\node_modules\jsonwebtoken\sign.js:111:20)
+    at Object.generateTokens (D:\mafynGate\backend\src\utils\jwt.util.js:5:27)
+    at AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:43:28)
+    at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
+--------------------------------------------------
