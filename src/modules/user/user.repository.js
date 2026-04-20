@@ -214,7 +214,14 @@ class UserRepository {
     follows.forEach(conn => {
       const otherUser = conn.followerId === userId ? conn.following : conn.follower;
       if (otherUser && otherUser.id !== userId) {
-        userMap.set(otherUser.id, otherUser);
+        // We only care about the alias WE set for THEM (where we are the follower)
+        const existing = userMap.get(otherUser.id) || otherUser;
+        const contactAlias = (conn.followerId === userId) ? conn.alias : (existing.contactAlias || null);
+        
+        userMap.set(otherUser.id, { 
+          ...existing, 
+          contactAlias 
+        });
       }
     });
 
@@ -222,7 +229,9 @@ class UserRepository {
     messagedUsers.forEach(msg => {
       const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
       if (otherUser && otherUser.id !== userId) {
-        userMap.set(otherUser.id, otherUser);
+        if (!userMap.has(otherUser.id)) {
+          userMap.set(otherUser.id, { ...otherUser, contactAlias: null });
+        }
       }
     });
 
@@ -325,18 +334,20 @@ class UserRepository {
     const mapped = await Promise.all(notifications.map(async (n) => {
       if (!n.senderId) return { ...n, isFollowingSender: false };
       
-      const isFollowing = await prisma.follow.findUnique({
+      const follow = await prisma.follow.findUnique({
         where: {
           followerId_followingId: {
             followerId: userId,
             followingId: n.senderId
           }
-        }
+        },
+        select: { alias: true }
       });
       
       return {
         ...n,
-        isFollowingSender: !!isFollowing
+        isFollowingSender: !!follow,
+        senderAlias: follow?.alias || null
       };
     }));
 
@@ -529,6 +540,16 @@ class UserRepository {
     await UserModel.update({
       where: { id: userId },
       data: { chatLockPassword: null }
+    });
+  }
+
+  async updateFollowAlias(followerId, followingId, alias) {
+    const prisma = require('../../config/db');
+    return await prisma.follow.update({
+      where: {
+        followerId_followingId: { followerId, followingId }
+      },
+      data: { alias }
     });
   }
 }

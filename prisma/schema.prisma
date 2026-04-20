@@ -70,6 +70,7 @@ model Follow {
   followerId  String
   followingId String
   status      FollowStatus @default(ACCEPTED)
+  alias       String?
   createdAt   DateTime @default(now())
 
   follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)

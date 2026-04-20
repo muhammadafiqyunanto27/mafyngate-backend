@@ -50,5 +50,6 @@ router.get('/profile/:userId', authMiddleware, userController.getProfile);
 router.get('/requests/pending', authMiddleware, userController.getPendingRequests);
 router.post('/requests/accept/:userId', authMiddleware, userController.acceptConnection);
 router.post('/requests/decline/:userId', authMiddleware, userController.declineConnection);
+router.patch('/contact/alias', authMiddleware, userController.updateContactAlias);
 
 module.exports = router;

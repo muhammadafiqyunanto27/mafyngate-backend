@@ -424,7 +424,9 @@ class UserController {
         ...u,
         email: undefined, // Hide email for privacy
         avatar: getAbsoluteUrl(u.avatar),
-        name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown')
+        displayName: u.contactAlias || u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
+        name: u.name || (u.email ? u.email.split('@')[0] : 'Unknown'),
+        contactAlias: u.contactAlias
       }));
 
       res.status(200).json({ success: true, data: mappedConnections });
@@ -827,6 +829,22 @@ class UserController {
     }
   }
 
+  async updateContactAlias(req, res, next) {
+    try {
+      const followerId = req.user.id;
+      const { targetId, alias } = req.body;
+
+      if (!targetId) {
+        return res.status(400).json({ success: false, message: 'Target ID is required' });
+      }
+
+      await userRepository.updateFollowAlias(followerId, targetId, alias);
+      res.status(200).json({ success: true, message: 'Alias updated successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getProfile(req, res, next) {
     try {
       const currentUserId = req.user.id;
@@ -875,6 +893,8 @@ class UserController {
         isPending,
         followsMe,
         inboundStatus,
+        contactAlias: connection?.alias || null,
+        displayName: connection?.alias || user.name || user.email.split('@')[0],
         email: currentUserId === targetId ? user.email : undefined // Hide email for everyone except owner
       };
 
