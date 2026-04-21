@@ -5,7 +5,14 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   console.log('✅ [Push] VAPID Keys Detected. Background Notifications Ready.');
 } else {
   console.error('❌ [Push] VAPID Keys Missing! Background Notifications will NOT work.');
-  console.log('   Please add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to your env variables.');
+}
+
+// Validation for JWT Secrets
+if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  console.error('CRITICAL: JWT Secrets are missing in environment variables!');
+  console.error('Please ensure JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are set in .env');
+} else {
+  console.log('✅ [Auth] JWT Secrets Verified.');
 }
 
 module.exports = {
