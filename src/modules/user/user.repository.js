@@ -282,7 +282,7 @@ class UserRepository {
           ]
         },
         orderBy: { createdAt: 'desc' },
-        select: { content: true, createdAt: true }
+        select: { content: true, createdAt: true, type: true }
       });
 
       return {
@@ -291,7 +291,8 @@ class UserRepository {
         isPinned: pinnedMap.get(u.id) || false,
         lastMessage: lastMsg ? {
           content: lastMsg.content,
-          createdAt: lastMsg.createdAt
+          createdAt: lastMsg.createdAt,
+          type: lastMsg.type
         } : null
       };
     }));

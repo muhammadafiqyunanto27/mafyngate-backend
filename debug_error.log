@@ -195,3 +195,102 @@ Stack: Error: secretOrPrivateKey must have a value
     at AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:43:28)
     at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
 --------------------------------------------------
+
+[2026-04-21T00:27:36.639Z] POST /auth/refresh
+Error: 
+Invalid `SessionModel.findFirst()` invocation in
+D:\mafynGate\backend\src\modules\session\session.repository.js:9:31
+
+  6 }
+  7 
+  8 async findByToken(refreshToken) {
+→ 9   return await SessionModel.findFirst(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+Stack: PrismaClientInitializationError: 
+Invalid `SessionModel.findFirst()` invocation in
+D:\mafynGate\backend\src\modules\session\session.repository.js:9:31
+
+  6 }
+  7 
+  8 async findByToken(refreshToken) {
+→ 9   return await SessionModel.findFirst(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+    at ei.handleRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:7568)
+    at ei.handleAndLogRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async SessionRepository.findByToken (D:\mafynGate\backend\src\modules\session\session.repository.js:9:12)
+    at async SessionService.findSession (D:\mafynGate\backend\src\modules\session\session.service.js:19:21)
+    at async AuthService.refresh (D:\mafynGate\backend\src\modules\auth\auth.service.js:72:21)
+    at async refresh (D:\mafynGate\backend\src\modules\auth\auth.controller.js:83:22)
+--------------------------------------------------
+
+[2026-04-21T00:27:41.670Z] POST /auth/refresh
+Error: 
+Invalid `SessionModel.findFirst()` invocation in
+D:\mafynGate\backend\src\modules\session\session.repository.js:9:31
+
+  6 }
+  7 
+  8 async findByToken(refreshToken) {
+→ 9   return await SessionModel.findFirst(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+Stack: PrismaClientInitializationError: 
+Invalid `SessionModel.findFirst()` invocation in
+D:\mafynGate\backend\src\modules\session\session.repository.js:9:31
+
+  6 }
+  7 
+  8 async findByToken(refreshToken) {
+→ 9   return await SessionModel.findFirst(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+    at ei.handleRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:7568)
+    at ei.handleAndLogRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async SessionRepository.findByToken (D:\mafynGate\backend\src\modules\session\session.repository.js:9:12)
+    at async SessionService.findSession (D:\mafynGate\backend\src\modules\session\session.service.js:19:21)
+    at async AuthService.refresh (D:\mafynGate\backend\src\modules\auth\auth.service.js:72:21)
+    at async refresh (D:\mafynGate\backend\src\modules\auth\auth.controller.js:83:22)
+--------------------------------------------------
+
+[2026-04-21T00:28:03.388Z] POST /auth/login
+Error: 
+Invalid `UserModel.findUnique()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:11:28
+
+   8 }
+   9 
+  10 async findByEmail(email) {
+→ 11   return await UserModel.findUnique(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+Stack: PrismaClientInitializationError: 
+Invalid `UserModel.findUnique()` invocation in
+D:\mafynGate\backend\src\modules\user\user.repository.js:11:28
+
+   8 }
+   9 
+  10 async findByEmail(email) {
+→ 11   return await UserModel.findUnique(
+Can't reach database server at `maglev.proxy.rlwy.net:48667`
+
+Please make sure your database server is running at `maglev.proxy.rlwy.net:48667`.
+    at ei.handleRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:7568)
+    at ei.handleAndLogRequestError (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\mafynGate\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async UserRepository.findByEmail (D:\mafynGate\backend\src\modules\user\user.repository.js:11:12)
+    at async AuthRepository.findUserByEmail (D:\mafynGate\backend\src\modules\auth\auth.repository.js:5:12)
+    at async AuthService.login (D:\mafynGate\backend\src\modules\auth\auth.service.js:33:18)
+    at async login (D:\mafynGate\backend\src\modules\auth\auth.controller.js:41:22)
+--------------------------------------------------

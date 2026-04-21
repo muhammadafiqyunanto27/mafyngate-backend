@@ -102,7 +102,26 @@ const chatSocket = (io) => {
       const { content, receiverId, type, fileUrl, fileName, fileSize, parentId } = data;
       const receiverIdStr = receiverId.toString();
       try {
-        let conversation = await prisma.conversation.findFirst({
+        let conversation;
+        if (userId === receiverIdStr) {
+          conversation = await prisma.conversation.findFirst({
+          where: { 
+            participants: { 
+              AND: [
+                { some: { userId: userId } },
+                { none: { userId: { not: userId } } }
+              ]
+            } 
+          }
+        });
+
+        if (!conversation) {
+          conversation = await prisma.conversation.create({
+            data: { participants: { create: [{ userId: userId }] } }
+          });
+        }
+      } else {
+        conversation = await prisma.conversation.findFirst({
           where: { participants: { every: { userId: { in: [userId, receiverIdStr] } } } }
         });
 
@@ -111,6 +130,7 @@ const chatSocket = (io) => {
             data: { participants: { create: [{ userId: userId }, { userId: receiverIdStr }] } }
           });
         }
+      }
 
         // Check if receiver is currently looking at this chat across any of their active tabs
         const receiverSockets = users.get(receiverIdStr) || new Set();
@@ -171,7 +191,7 @@ const chatSocket = (io) => {
             data: {
               userId: receiverIdStr,
               type: 'CHAT',
-              content: `${senderName}: ${content.substring(0, 50)}`,
+              content: `${senderName}: ${type === 'PROFILE' ? (() => { try { return `Profile: ${JSON.parse(content).name}`; } catch(e) { return 'shared a profile'; } })() : (type === 'IMAGE' ? '[Photo]' : type === 'VIDEO' ? '[Video]' : content.substring(0, 50))}`,
               senderId: userId
             }
           });
@@ -190,7 +210,7 @@ const chatSocket = (io) => {
           });
         }
         
-        socket.emit('message_sent', sanitizedMessage);
+        io.to(userId).emit('message_sent', sanitizedMessage);
       } catch (err) {
         console.error('[Socket] Chat error:', err);
       }

@@ -8,35 +8,26 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String?
-  bio       String?   @default("")
-  isPrivate Boolean   @default(false)
-  password  String
-  avatar    String?   @default("")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  
-  sessions  Session[]
-  todos     Todo[]
-  activities Activity[]
-  
-  // Chat Relations
-  messagesSent     Message[] @relation("SentMessages")
-  messagesReceived Message[] @relation("ReceivedMessages")
-  participants     ConversationParticipant[]
-  
-  // Follow system
-  following        Follow[] @relation("following")
-  followers        Follow[] @relation("followers")
-  notifications    Notification[]
-  
-  // Security
-  chatLockPassword String?
-  
-  // Push Notifications
+  id                String                    @id @default(uuid())
+  email             String                    @unique
+  password          String
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  name              String?
+  avatar            String?                   @default("")
+  chatLockPassword  String?
+  bio               String?                   @default("")
+  isPrivate         Boolean                   @default(false)
+  activities        Activity[]
+  participants      ConversationParticipant[]
+  following         Follow[]                  @relation("following")
+  followers         Follow[]                  @relation("followers")
+  messagesReceived  Message[]                 @relation("ReceivedMessages")
+  messagesSent      Message[]                 @relation("SentMessages")
+  notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  sessions          Session[]
+  todos             Todo[]
 }
 
 model HiddenConversation {
@@ -51,41 +42,33 @@ model HiddenConversation {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String   // FOLLOW, CHAT, SYSTEM
+  type      String
   content   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  senderId  String?  // Who triggered it
-
+  senderId  String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum FollowStatus {
-  PENDING
-  ACCEPTED
-}
-
 model Follow {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   followerId  String
   followingId String
+  createdAt   DateTime     @default(now())
   status      FollowStatus @default(ACCEPTED)
   alias       String?
-  createdAt   DateTime @default(now())
-
-  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+  follower    User         @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User         @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
 }
 
 model Conversation {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  messages     Message[]
+  id           String                    @id @default(uuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
   participants ConversationParticipant[]
+  messages     Message[]
 }
 
 model ConversationParticipant {
@@ -93,56 +76,42 @@ model ConversationParticipant {
   conversationId String
   userId         String
   isPinned       Boolean      @default(false)
-  
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
 }
 
-enum MessageType {
-  TEXT
-  IMAGE
-  VIDEO
-  FILE
-  VOICE
-  PROFILE
-}
-
 model Message {
   id             String       @id @default(uuid())
   content        String
-  type           MessageType  @default(TEXT)
-  fileUrl        String?
-  fileName       String?
-  fileSize       Int?
   senderId       String
   receiverId     String
   conversationId String
   isRead         Boolean      @default(false)
-  isEdited       Boolean      @default(false)
-  
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-
+  isEdited       Boolean      @default(false)
+  fileName       String?
+  fileSize       Int?
+  fileUrl        String?
+  type           MessageType  @default(TEXT)
   parentId       String?
-  parent         Message?     @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies        Message[]    @relation("MessageReplies")
-
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parent         Message?     @relation("MessageReplies", fields: [parentId], references: [id])
+  replies        Message[]    @relation("MessageReplies")
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
 model Session {
   id            String   @id @default(uuid())
   user_id       String
-  refresh_token String   @unique // Added unique constraint natively to help query index mapping
+  refresh_token String   @unique
   user_agent    String?
   ip_address    String?
   expires_at    DateTime
   created_at    DateTime @default(now())
-  
   user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
@@ -153,17 +122,15 @@ model Todo {
   user_id   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model Activity {
   id        String   @id @default(uuid())
-  type      String   // e.g., "TASK_CREATED", "TASK_COMPLETED", "LOGIN"
+  type      String
   message   String
   user_id   String
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
@@ -174,6 +141,19 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  FILE
+  VOICE
+  PROFILE
 }
