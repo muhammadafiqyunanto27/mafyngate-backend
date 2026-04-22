@@ -392,7 +392,23 @@ class UserRepository {
     const prisma = require('../../config/db');
     return await prisma.message.findMany({
       where: {
-        conversation: { participants: { every: { userId: { in: [user1, user2] } } } }
+        conversation: {
+          participants: {
+            // Strict exact match: all participants must be in [user1, user2] 
+            // AND user1 must be present AND user2 must be present.
+            // This prevents leaks from self-chats or groups.
+            some: { userId: user1 },
+            every: { userId: { in: [user1, user2] } },
+            // If they are different users, ensure both are present.
+            // If it's a self-chat (user1 === user2), the logic still holds.
+            ...(user1 !== user2 && {
+              AND: [
+                { some: { userId: user1 } },
+                { some: { userId: user2 } }
+              ]
+            })
+          }
+        }
       },
       include: {
         sender: { select: { id: true, name: true, avatar: true, email: true } },

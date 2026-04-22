@@ -22,9 +22,21 @@ Stack: ${err.stack}
   // Also log to console for the user
   console.error(`[Error] ${req.method} ${req.path} >>`, err);
 
-  res.status(statusCode).json({
+  let message = err.message || 'Internal Server Error';
+  let genericStatusCode = statusCode;
+
+  // Handle Prisma Connection Errors specifically
+  if (err.name === 'PrismaClientInitializationError') {
+    genericStatusCode = 503; // Service Unavailable
+    message = 'Sistem sedang mengalami masalah koneksi ke database. Silakan hubungi admin atau periksa status Railway Anda.';
+  } else if (err.code === 'P2002') {
+    genericStatusCode = 400;
+    message = 'Data sudah terdaftar dalam sistem.';
+  }
+
+  res.status(genericStatusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack,
   });
 };

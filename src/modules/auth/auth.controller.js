@@ -43,24 +43,17 @@ class AuthController {
       const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
       const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
       
-      // Cookie options - Optimized for Cross-Browser & PERSISTENCE on Localhost
-      // Note: sameSite 'none' requires 'secure: true'. 
-      // Most browsers allow secure: true on localhost even without HTTPS.
+      // Cookie options - Optimized for Cross-Browser (Chrome, Safari, Firefox)
+      // Note: sameSite 'none' absolutely requires 'secure: true'.
+      // Partitioned is for modern Chrome (CHIPS) to prevent cross-site cookie blocking.
       const cookieOptions = {
         httpOnly: true,
-        secure: isProduction || isSecure, 
-        sameSite: (isProduction || isSecure) ? 'none' : 'lax',
+        secure: true, // Always true since we have 'trust proxy' and 'SameSite=None'
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/',
-        partitioned: isProduction || isSecure
+        partitioned: true // CHIPS support for Cross-Site persistence
       };
-
-      // Special handling for localhost cross-origin dev if necessary
-      if (!isProduction && req.headers.origin && req.headers.origin.includes('localhost')) {
-         // Some browsers/environments prefer lax for localhost if not using https
-         cookieOptions.sameSite = 'lax';
-         cookieOptions.secure = false; 
-      }
 
       // Send refresh token as HTTP Only cookie
       res.cookie('refreshToken', result.refreshToken, cookieOptions);
@@ -101,10 +94,10 @@ class AuthController {
       // Clear cookie regardless
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: isSecure || isProduction,
-        sameSite: (isSecure || isProduction) ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'none',
         path: '/',
-        partitioned: isSecure || isProduction
+        partitioned: true
       });
       res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {

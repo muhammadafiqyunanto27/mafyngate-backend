@@ -28,6 +28,9 @@ if (process.env.USE_CLOUDINARY !== 'true') {
 
 const app = express();
 
+// Trust reverse proxy (Railway, Vercel, etc.) to allow Secure cookies
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
