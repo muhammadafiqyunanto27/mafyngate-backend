@@ -52,6 +52,5 @@ router.get('/requests/pending', authMiddleware, userController.getPendingRequest
 router.post('/requests/accept/:userId', authMiddleware, userController.acceptConnection);
 router.post('/requests/decline/:userId', authMiddleware, userController.declineConnection);
 router.patch('/contact/alias', authMiddleware, userController.updateContactAlias);
-router.get('/download', authMiddleware, userController.downloadFile);
 
 module.exports = router;
