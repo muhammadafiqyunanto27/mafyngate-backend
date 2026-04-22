@@ -668,16 +668,11 @@ class UserController {
       const prisma = require('../../config/db');
       const conversation = await prisma.conversation.findFirst({
         where: {
-          participants: {
-            some: { userId: userId },
-            every: { userId: { in: [userId, targetId] } },
-            ...(userId !== targetId && {
-              AND: [
-                { some: { userId: userId } },
-                { some: { userId: targetId } }
-              ]
-            })
-          }
+          AND: [
+            { participants: { some: { userId: userId } } },
+            { participants: { some: { userId: targetId } } },
+            { participants: { every: { userId: { in: [userId, targetId] } } } }
+          ]
         }
       });
 
@@ -720,16 +715,11 @@ class UserController {
       // Find conversation between these users
       const conversation = await prisma.conversation.findFirst({
         where: {
-          participants: {
-            some: { userId: userId },
-            every: { userId: { in: [userId, targetId] } },
-            ...(userId !== targetId && {
-              AND: [
-                { some: { userId: userId } },
-                { some: { userId: targetId } }
-              ]
-            })
-          }
+          AND: [
+            { participants: { some: { userId: userId } } },
+            { participants: { some: { userId: targetId } } },
+            { participants: { every: { userId: { in: [userId, targetId] } } } }
+          ]
         }
       });
 

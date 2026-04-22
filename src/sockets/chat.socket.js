@@ -123,16 +123,11 @@ const chatSocket = (io) => {
       } else {
         conversation = await prisma.conversation.findFirst({
           where: {
-            participants: {
-              some: { userId: userId },
-              every: { userId: { in: [userId, receiverIdStr] } },
-              ...(userId !== receiverIdStr && {
-                AND: [
-                  { some: { userId: userId } },
-                  { some: { userId: receiverIdStr } }
-                ]
-              })
-            }
+            AND: [
+              { participants: { some: { userId: userId } } },
+              { participants: { some: { userId: receiverIdStr } } },
+              { participants: { every: { userId: { in: [userId, receiverIdStr] } } } }
+            ]
           }
         });
 
