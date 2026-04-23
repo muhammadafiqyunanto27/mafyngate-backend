@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force Node.js to prefer IPv4 for all DNS lookups (fixes IPv6 ENETUNREACH on Railway)
+dns.setDefaultResultOrder('ipv4first');
 
 // ─── Transporter ─────────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
