@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 // ─── Transporter ─────────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: 465, // Force port 465 (Implicit TLS) to bypass Railway 587 port blocking
+  port: 465,
   secure: true,
   auth: {
     user: process.env.SMTP_USER,
@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 10000,
+  family: 4, // Force IPv4 (fixes IPv6 ENETUNREACH / timeout issues)
 });
 
 // Verify connection on startup
