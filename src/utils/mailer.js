@@ -6,17 +6,20 @@ dns.setDefaultResultOrder('ipv4first');
 
 // ─── Transporter ─────────────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: '74.125.24.109', // Google SMTP IPv4 Hardcoded
   port: 465,
   secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    servername: 'smtp.gmail.com', // Required for TLS verification when using IP
+  },
   connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 10000,
-  family: 4, // Force IPv4 (fixes IPv6 ENETUNREACH / timeout issues)
+  family: 4,
 });
 
 // Verify connection on startup
