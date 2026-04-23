@@ -1,11 +1,10 @@
 const nodemailer = require('nodemailer');
 
 // ─── Transporter ─────────────────────────────────────────────────────────────
-const smtpPort = parseInt(process.env.SMTP_PORT || '465');
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: smtpPort,
-  secure: smtpPort === 465, // true for 465, false for 587
+  port: 465, // Force port 465 (Implicit TLS) to bypass Railway 587 port blocking
+  secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
