@@ -1,16 +1,30 @@
 require('dotenv').config();
 
-// Diagnostic Log for Push Notifications
+// ─── Validation for Push Notifications ───────────────────────────────────────
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   console.log('✅ [Push] VAPID Keys Detected. Background Notifications Ready.');
 } else {
-  console.error('❌ [Push] VAPID Keys Missing! Background Notifications will NOT work.');
+  console.warn('⚠️  [Push] VAPID Keys Missing. Background Notifications will NOT work.');
 }
 
-// Validation for JWT Secrets
+// ─── Validation for JWT Secrets ───────────────────────────────────────────────
+// CRITICAL: Without these, every login/register silently fails.
+// If missing in production → crash immediately so Railway restarts with a clear log.
 if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
-  console.error('CRITICAL: JWT Secrets are missing in environment variables!');
-  console.error('Please ensure JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are set in .env');
+  const msg = [
+    '═══════════════════════════════════════════════════════',
+    '  FATAL: JWT_ACCESS_SECRET or JWT_REFRESH_SECRET missing!',
+    '  All login/register requests will fail without these.',
+    '  → Set them in Railway → Variables and redeploy.',
+    '═══════════════════════════════════════════════════════',
+  ].join('\n');
+  console.error(msg);
+
+  // In production: crash fast so Railway shows a clear crash log.
+  // In development: just warn so devs don't get stuck.
+  if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+    process.exit(1);
+  }
 } else {
   console.log('✅ [Auth] JWT Secrets Verified.');
 }

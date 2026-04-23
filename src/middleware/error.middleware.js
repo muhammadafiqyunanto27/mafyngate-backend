@@ -20,18 +20,32 @@ Stack: ${err.stack}
   }
 
   // Also log to console for the user
-  console.error(`[Error] ${req.method} ${req.path} >>`, err);
+  console.error(`[Error] ${req.method} ${req.path} >>`, err.message || err);
 
   let message = err.message || 'Internal Server Error';
   let genericStatusCode = statusCode;
 
-  // Handle Prisma Connection Errors specifically
+  // ─── Prisma: Database Unreachable ────────────────────────────────────────────
   if (err.name === 'PrismaClientInitializationError') {
-    genericStatusCode = 503; // Service Unavailable
-    message = 'Sistem sedang mengalami masalah koneksi ke database. Silakan hubungi admin atau periksa status Railway Anda.';
+    genericStatusCode = 503;
+    message = 'Database sedang tidak bisa dijangkau. Silakan coba lagi dalam beberapa menit.';
+  // ─── Prisma: Too Many DB Connections ─────────────────────────────────────────
+  } else if (err.message && err.message.includes('too many clients')) {
+    genericStatusCode = 503;
+    message = 'Server sedang overload. Silakan coba lagi dalam beberapa detik.';
+  // ─── Prisma: DB Server Unreachable (generic) ──────────────────────────────────
+  } else if (err.message && err.message.includes("Can't reach database server")) {
+    genericStatusCode = 503;
+    message = 'Koneksi database terputus. Server sedang recovery, mohon tunggu sebentar.';
+  // ─── Prisma: Unique Constraint Violation ─────────────────────────────────────
   } else if (err.code === 'P2002') {
     genericStatusCode = 400;
     message = 'Data sudah terdaftar dalam sistem.';
+  // ─── JWT: Secret Not Configured ──────────────────────────────────────────────
+  } else if (err.message && err.message.includes('secretOrPrivateKey must have a value')) {
+    genericStatusCode = 500;
+    message = 'Konfigurasi server bermasalah (JWT). Hubungi admin.';
+    console.error('[CRITICAL] JWT_ACCESS_SECRET or JWT_REFRESH_SECRET is not set in environment variables!');
   }
 
   res.status(genericStatusCode).json({
@@ -42,3 +56,4 @@ Stack: ${err.stack}
 };
 
 module.exports = errorHandler;
+
