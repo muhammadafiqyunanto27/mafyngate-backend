@@ -8,8 +8,6 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 // ─── Validation for JWT Secrets ───────────────────────────────────────────────
-// CRITICAL: Without these, every login/register silently fails.
-// If missing in production → crash immediately so Railway restarts with a clear log.
 if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
   const msg = [
     '═══════════════════════════════════════════════════════',
@@ -19,14 +17,25 @@ if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
     '═══════════════════════════════════════════════════════',
   ].join('\n');
   console.error(msg);
-
-  // In production: crash fast so Railway shows a clear crash log.
-  // In development: just warn so devs don't get stuck.
   if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
     process.exit(1);
   }
 } else {
   console.log('✅ [Auth] JWT Secrets Verified.');
+}
+
+// ─── Validation for Google OAuth ─────────────────────────────────────────────
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.warn('⚠️  [Google OAuth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET missing. Google login will NOT work.');
+} else {
+  console.log('✅ [Google OAuth] Credentials Verified.');
+}
+
+// ─── Validation for SMTP ──────────────────────────────────────────────────────
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.warn('⚠️  [Mailer] SMTP_USER or SMTP_PASS missing. Password reset emails will NOT work.');
+} else {
+  console.log('✅ [Mailer] SMTP Credentials Detected.');
 }
 
 module.exports = {
@@ -40,6 +49,18 @@ module.exports = {
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY,
     privateKey: process.env.VAPID_PRIVATE_KEY,
-    email: process.env.VAPID_EMAIL || 'mailto:muham@example.com'
-  }
+    email: process.env.VAPID_EMAIL || 'mailto:muham@example.com',
+  },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  },
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM,
+  },
 };
+

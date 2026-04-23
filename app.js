@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const passport = require('passport');
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { apiLimiter } = require('./src/middleware/rateLimit.middleware');
 const errorHandler = require('./src/middleware/error.middleware');
 const cookieParser = require('cookie-parser');
@@ -13,7 +15,7 @@ if (process.env.USE_CLOUDINARY !== 'true') {
   const uploadDirs = [
     path.resolve(uploadBase),
     path.resolve(uploadBase, 'avatars'),
-    path.resolve(uploadBase, 'chat')
+    path.resolve(uploadBase, 'chat'),
   ];
 
   uploadDirs.forEach(dir => {
@@ -36,34 +38,43 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'https://mafyngate.vercel.app',
-  'https://mafyn-gate.vercel.app'
+  'https://mafyn-gate.vercel.app',
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // 1. Allow internal/server-to-server or development tools (no origin)
     if (!origin) return callback(null, true);
-
-    // 2. Allow explicitly listed origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
-
-    // 3. Allow typical local network development IPs (for mobile testing)
-    const isLocalNetwork = 
-      origin.startsWith('http://192.168.') || 
-      origin.startsWith('http://10.') || 
+    const isLocalNetwork =
+      origin.startsWith('http://192.168.') ||
+      origin.startsWith('http://10.') ||
       origin.startsWith('http://172.') ||
       origin.includes('localhost:');
-
     if (isLocalNetwork) return callback(null, true);
-
-    // Otherwise, deny
     console.warn(`[CORS] Blocked request from: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
+  credentials: true,
 }));
+
 app.use(express.json());
 app.use(cookieParser());
+
+// ─── Passport: Google OAuth Strategy ─────────────────────────────────────────
+passport.use(new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/auth/google/callback`,
+  },
+  (accessToken, refreshToken, profile, done) => {
+    // Pass the raw Google profile to the controller — auth service handles DB logic
+    return done(null, profile);
+  }
+));
+
+// Passport middleware (no sessions — we use JWT)
+app.use(passport.initialize());
 
 // Apply rate limiting to all requests
 app.use(apiLimiter);

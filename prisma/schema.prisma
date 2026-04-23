@@ -10,7 +10,7 @@ datasource db {
 model User {
   id                String                    @id @default(uuid())
   email             String                    @unique
-  password          String
+  password          String?
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   name              String?
@@ -18,6 +18,7 @@ model User {
   chatLockPassword  String?
   bio               String?                   @default("")
   isPrivate         Boolean                   @default(false)
+  googleId          String?                   @unique
   activities        Activity[]
   participants      ConversationParticipant[]
   following         Follow[]                  @relation("following")
@@ -28,6 +29,7 @@ model User {
   pushSubscriptions PushSubscription[]
   sessions          Session[]
   todos             Todo[]
+  passwordResets    PasswordResetToken[]
 }
 
 model HiddenConversation {
@@ -156,4 +158,14 @@ enum MessageType {
   FILE
   VOICE
   PROFILE
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
