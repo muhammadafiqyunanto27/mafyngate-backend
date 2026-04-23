@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const emailValidator = require('email-validator');
+const disposableDomains = require('disposable-email-domains');
 const authRepository = require('./auth.repository');
 const sessionService = require('../session/session.service');
 const jwtUtil = require('../../utils/jwt.util');
@@ -11,9 +13,21 @@ const prisma = require('../../config/db');
 
 class AuthService {
   async register(email, password) {
+    if (!emailValidator.validate(email)) {
+      throw { statusCode: 400, message: 'Format email tidak valid.' };
+    }
+
+    const domain = email.split('@')[1];
+    if (disposableDomains.includes(domain)) {
+      throw { statusCode: 400, message: 'Email sekali pakai (disposable email) tidak diizinkan.' };
+    }
+
     const existingUser = await authRepository.findUserByEmail(email);
     if (existingUser) {
-      throw { statusCode: 400, message: 'User already exists' };
+      if (existingUser.googleId && !existingUser.password) {
+        throw { statusCode: 400, message: 'Email ini sudah terdaftar via Google. Silakan login dengan Google dan atur password di pengaturan.' };
+      }
+      throw { statusCode: 400, message: 'Email sudah digunakan.' };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -122,8 +136,8 @@ class AuthService {
     // Always return success to prevent email enumeration attacks
     if (!user) return;
 
-    // Google-only accounts can't reset password via email
-    if (!user.password && user.googleId) return;
+    // Note: We deliberately allow Google-only accounts to reset/set their password 
+    // here, so they can create a password for manual login.
 
     // Invalidate all existing tokens for this user
     await prisma.passwordResetToken.updateMany({
