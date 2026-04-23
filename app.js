@@ -65,7 +65,8 @@ passport.use(new GoogleStrategy(
   {
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/auth/google/callback`,
+    callbackURL: '/auth/google/callback',
+    proxy: true, // IMPORTANT: Trust Railway proxy to correctly resolve https://
   },
   (accessToken, refreshToken, profile, done) => {
     // Pass the raw Google profile to the controller — auth service handles DB logic
