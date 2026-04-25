@@ -1,12 +1,23 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendKey = process.env.RESEND_API_KEY;
+
+if (!resendKey) {
+  console.warn('⚠️ [Mailer] RESEND_API_KEY is missing in .env. Email features will not work.');
+}
+
+const resend = resendKey ? new Resend(resendKey) : null;
 
 // ─── Send Password Reset Email ────────────────────────────────────────────────
 const sendPasswordResetEmail = async (toEmail, resetUrl) => {
   // If the user hasn't set up a verified domain in Resend, they MUST use onboarding@resend.dev as the 'from' address
   // and they can only send emails to the email address they registered with on Resend.
   const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+  if (!resend) {
+    console.error('❌ [Resend] Cannot send email: Resend instance not initialized (missing API Key).');
+    return;
+  }
 
   try {
     const data = await resend.emails.send({
