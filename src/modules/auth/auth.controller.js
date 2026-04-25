@@ -2,14 +2,18 @@ const authService = require('./auth.service');
 const config = require('../../config/env');
 
 // Cookie options helper
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none',
-  maxAge: 3650 * 24 * 60 * 60 * 1000,
-  path: '/',
-  partitioned: true,
-});
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    maxAge: 3650 * 24 * 60 * 60 * 1000,
+    path: '/',
+    partitioned: true,
+    domain: isProduction ? '.mafyngate.web.id' : 'localhost',
+  };
+};
 
 class AuthController {
   async register(req, res, next) {
