@@ -3,7 +3,7 @@ const config = require('../config/env');
 
 const generateTokens = (payload) => {
   const accessToken = jwt.sign(payload, config.jwt.accessSecret, {
-    expiresIn: '15m',
+    expiresIn: '7d',
   });
 
   const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
