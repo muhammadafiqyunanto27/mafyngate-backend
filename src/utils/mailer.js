@@ -10,9 +10,9 @@ const resend = resendKey ? new Resend(resendKey) : null;
 
 // ─── Send Password Reset Email ────────────────────────────────────────────────
 const sendPasswordResetEmail = async (toEmail, resetUrl) => {
-  // If the user hasn't set up a verified domain in Resend, they MUST use onboarding@resend.dev as the 'from' address
-  // and they can only send emails to the email address they registered with on Resend.
-  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  // Use the verified domain email from .env, or fallback to onboarding@resend.dev if not set
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const fromName = 'MafynGate Security';
 
   if (!resend) {
     console.error('❌ [Resend] Cannot send email: Resend instance not initialized (missing API Key).');
@@ -21,7 +21,7 @@ const sendPasswordResetEmail = async (toEmail, resetUrl) => {
 
   try {
     const data = await resend.emails.send({
-      from: `MafynGate <${from}>`,
+      from: `${fromName} <${fromEmail}>`,
       to: [toEmail],
       subject: 'Reset Password MafynGate',
       html: `
