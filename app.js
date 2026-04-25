@@ -37,7 +37,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://mafyngate.web.id', // Domain Baru
+  'https://mafyngate.web.id',
+  'https://www.mafyngate.web.id', // Versi WWW
   'https://mafyngate.vercel.app',
   'https://mafyn-gate.vercel.app',
 ].filter(Boolean);
