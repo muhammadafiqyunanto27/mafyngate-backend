@@ -2,9 +2,9 @@ const sessionRepository = require('./session.repository');
 
 class SessionService {
   async createSession(userId, refreshToken, userAgent, ipAddress) {
-    // 7 days expiry for refresh token
+    // 10 years expiry for refresh token (3650 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 3650);
 
     return await sessionRepository.create({
       user_id: userId,
