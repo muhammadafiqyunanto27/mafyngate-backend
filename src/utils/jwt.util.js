@@ -7,7 +7,7 @@ const generateTokens = (payload) => {
   });
 
   const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
-    expiresIn: '7d',
+    expiresIn: '3650d',
   });
 
   return { accessToken, refreshToken };
