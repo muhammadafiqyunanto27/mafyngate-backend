@@ -16,7 +16,7 @@ if (global.__prisma) {
   // Warm up the connection pool on startup
   prisma.$connect()
     .then(() => {
-      console.log('✅ [Database] Connected successfully to Railway Postgres.');
+      console.log('✅ [Database] Connected successfully to Database.');
     })
     .catch((err) => {
       console.error('❌ [Database] Connection Failed!', err.message);
