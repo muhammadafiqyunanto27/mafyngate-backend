@@ -15,6 +15,18 @@ const getCookieOptions = () => {
   };
 };
 
+const getClearCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+    partitioned: true,
+    domain: isProduction ? '.mafyngate.web.id' : 'localhost',
+  };
+};
+
 class AuthController {
   async register(req, res, next) {
     try {
@@ -85,13 +97,7 @@ class AuthController {
         await authService.logout(refreshToken);
       }
 
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        path: '/',
-        partitioned: true,
-      });
+      res.clearCookie('refreshToken', getClearCookieOptions());
       res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
       next(error);
@@ -105,16 +111,7 @@ class AuthController {
         await authService.logoutAll(refreshToken);
       }
 
-      const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
-      const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: isSecure || isProduction,
-        sameSite: (isSecure || isProduction) ? 'none' : 'lax',
-        path: '/',
-        partitioned: isSecure || isProduction,
-      });
+      res.clearCookie('refreshToken', getClearCookieOptions());
       res.status(200).json({ success: true, message: 'Logged out from all devices' });
     } catch (error) {
       next(error);
