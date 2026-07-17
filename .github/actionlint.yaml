@@ -1,0 +1,8 @@
+# actionlint configuration file to ignore linter false positives.
+# This prevents warnings when accessing secrets or variables that are defined in GitHub but not locally.
+
+paths:
+  .github/workflows/deploy.yml:
+    ignore:
+      - 'Context access might be invalid: VPS_PORT'
+      - '"VPS_PORT" is not defined in "secrets" context'
