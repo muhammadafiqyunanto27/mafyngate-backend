@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
+const helmet = require('helmet');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { apiLimiter } = require('./src/middleware/rateLimit.middleware');
 const errorHandler = require('./src/middleware/error.middleware');
+const xssSanitizer = require('./src/middleware/xss.middleware');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
@@ -59,7 +61,11 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(express.json());
+app.use(xssSanitizer);
 app.use(cookieParser());
 
 // ─── Passport: Google OAuth Strategy ─────────────────────────────────────────

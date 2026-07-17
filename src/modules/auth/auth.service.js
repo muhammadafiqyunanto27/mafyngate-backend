@@ -192,21 +192,27 @@ class AuthService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password & mark token as used in a transaction
-    await prisma.$transaction([
-      prisma.user.update({
+    // Update password & mark token as used in an interactive transaction to prevent race conditions
+    await prisma.$transaction(async (tx) => {
+      const updateResult = await tx.passwordResetToken.updateMany({
+        where: { id: record.id, used: false },
+        data: { used: true },
+      });
+
+      if (updateResult.count === 0) {
+        throw { statusCode: 400, message: 'Link reset tidak valid atau sudah digunakan.' };
+      }
+
+      await tx.user.update({
         where: { id: record.userId },
         data: { password: hashedPassword },
-      }),
-      prisma.passwordResetToken.update({
-        where: { id: record.id },
-        data: { used: true },
-      }),
+      });
+
       // Invalidate all sessions (security: force re-login on all devices)
-      prisma.session.deleteMany({
+      await tx.session.deleteMany({
         where: { user_id: record.userId },
-      }),
-    ]);
+      });
+    });
 
     await logActivity(record.userId, 'RESET_PASSWORD', 'Password reset successfully');
   }
