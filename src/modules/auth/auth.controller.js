@@ -7,11 +7,10 @@ const getCookieOptions = () => {
   return {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
     maxAge: 3650 * 24 * 60 * 60 * 1000,
     path: '/',
-    partitioned: true,
-    domain: isProduction ? '.mafyngate.web.id' : 'localhost',
+    domain: isProduction ? '.mafyngate.web.id' : undefined,
   };
 };
 
@@ -20,10 +19,9 @@ const getClearCookieOptions = () => {
   return {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
     path: '/',
-    partitioned: true,
-    domain: isProduction ? '.mafyngate.web.id' : 'localhost',
+    domain: isProduction ? '.mafyngate.web.id' : undefined,
   };
 };
 
