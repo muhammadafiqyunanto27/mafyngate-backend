@@ -1,20 +1,20 @@
 const express = require('express');
 const passport = require('passport');
 const authController = require('./auth.controller');
-const { loginLimiter } = require('../../middleware/rateLimit.middleware');
+const { loginLimiter, registerLimiter, passwordResetLimiter } = require('../../middleware/rateLimit.middleware');
 
 const router = express.Router();
 
 // ─── Standard Auth ────────────────────────────────────────────────────────────
-router.post('/register', authController.register);
+router.post('/register', registerLimiter, authController.register);
 router.post('/login', loginLimiter, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.post('/logout-all', authController.logoutAll);
 
 // ─── Forgot / Reset Password ──────────────────────────────────────────────────
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
+router.post('/forgot-password', passwordResetLimiter, authController.forgotPassword);
+router.post('/reset-password', passwordResetLimiter, authController.resetPassword);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 // Step 1: Redirect user to Google login

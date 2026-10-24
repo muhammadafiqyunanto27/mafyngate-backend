@@ -49,12 +49,6 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    const isLocalNetwork =
-      origin.startsWith('http://192.168.') ||
-      origin.startsWith('http://10.') ||
-      origin.startsWith('http://172.') ||
-      origin.includes('localhost:');
-    if (isLocalNetwork) return callback(null, true);
     console.warn(`[CORS] Blocked request from: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
@@ -62,7 +56,25 @@ app.use(cors({
 }));
 
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "https:", "blob:"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
 }));
 app.use(express.json());
 app.use(xssSanitizer);
@@ -88,8 +100,14 @@ app.use(passport.initialize());
 // Apply rate limiting to all requests
 app.use(apiLimiter);
 
-// Serve uploads
-app.use('/uploads', express.static(path.resolve(uploadBase)));
+// Serve uploads (with path traversal protection)
+app.use('/uploads', (req, res, next) => {
+  const requestedPath = path.normalize(req.path);
+  if (requestedPath.includes('..') || requestedPath.includes('\0')) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+  next();
+}, express.static(path.resolve(uploadBase)));
 
 // Routes
 const authRoutes = require('./src/modules/auth/auth.route');
