@@ -97,6 +97,45 @@ passport.use(new GoogleStrategy(
 // Passport middleware (no sessions — we use JWT)
 app.use(passport.initialize());
 
+// ─── Public status endpoints ─────────────────────────────────────────────────
+// Deliberately registered BEFORE the rate limiter so external monitors and
+// uptime checks never get throttled. No auth required, no sensitive data.
+const prisma = require('./src/config/db');
+
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'mafyngate-api',
+    status: 'ok',
+    message: 'Server is running. Use GET /health for a detailed check.',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/health', async (req, res) => {
+  const startedAt = Date.now();
+  let db = 'connected';
+  let dbLatencyMs = null;
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbLatencyMs = Date.now() - startedAt;
+  } catch (err) {
+    db = 'error';
+  }
+
+  const healthy = db === 'connected';
+  res.status(healthy ? 200 : 503).json({
+    success: healthy,
+    status: healthy ? 'ok' : 'degraded',
+    service: 'mafyngate-api',
+    db,
+    dbLatencyMs,
+    uptimeSeconds: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Apply rate limiting to all requests
 app.use(apiLimiter);
 
